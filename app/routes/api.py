@@ -321,3 +321,15 @@ def api_get_settings(db: Session = Depends(get_db)):
         "timezone": AutoSchedulerService.get_setting_str(db, "timezone", "UTC")
     }
 
+@router.api_route("/admin/ai-blog/cron-run", methods=["GET", "POST"])
+def api_cron_run(db: Session = Depends(get_db)):
+    """
+    Dedicated endpoint for Vercel Cron and external job trigger.
+    Processes the next scheduled keyword safely in serverless execution.
+    """
+    from app.services.auto_scheduler import AutoSchedulerService
+    enabled = AutoSchedulerService.get_setting_str(db, "auto_scheduler_enabled", "true").lower() == "true"
+    if not enabled:
+        return {"status": "skipped", "message": "Auto-scheduler is currently paused in settings."}
+    res = AutoSchedulerService.process_next_keyword(db, force=False)
+    return {"status": "ok", "result": res or {}}

@@ -32,15 +32,19 @@ def init_app_state():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_app_state()
-    # Start autonomous background scheduler task
-    import asyncio
-    from app.services.auto_scheduler import AutoSchedulerService
-    scheduler_task = asyncio.create_task(AutoSchedulerService.start_background_loop())
+    # Start autonomous background scheduler task only in non-serverless environments
+    scheduler_task = None
+    if not settings.IS_VERCEL:
+        import asyncio
+        from app.services.auto_scheduler import AutoSchedulerService
+        scheduler_task = asyncio.create_task(AutoSchedulerService.start_background_loop())
     try:
         yield
     finally:
-        AutoSchedulerService.stop_background_loop()
-        scheduler_task.cancel()
+        if scheduler_task:
+            from app.services.auto_scheduler import AutoSchedulerService
+            AutoSchedulerService.stop_background_loop()
+            scheduler_task.cancel()
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -61,28 +65,46 @@ class VercelPathMiddleware:
         if scope["type"] == "http":
             path = scope.get("path", "")
             query_bytes = scope.get("query_string", b"")
+            headers = dict(scope.get("headers", []))
+
+            # 1. Capture path from rewrite query param ?__vercel_path=...
             if b"__vercel_path=" in query_bytes:
                 params = urllib.parse.parse_qs(query_bytes.decode("latin1", errors="replace"), keep_blank_values=True)
                 if "__vercel_path" in params:
-                    dest = params.pop("__vercel_path")[0]
-                    if not dest.startswith("/"):
-                        dest = "/" + dest
+                    raw_val = params.pop("__vercel_path")[0]
+                    dest = raw_val if raw_val.startswith("/") else "/" + raw_val
                     scope["path"] = dest
                     scope["raw_path"] = dest.encode("ascii")
                     scope["query_string"] = urllib.parse.urlencode(params, doseq=True).encode("latin1")
-            elif path.startswith("/api/index.py"):
-                sub = path[len("/api/index.py"):]
-                dest = sub if sub.startswith("/") else "/" + sub
-                scope["path"] = dest
-                scope["raw_path"] = dest.encode("ascii")
-            elif path.startswith("/api/index"):
-                sub = path[len("/api/index"):]
-                dest = sub if sub.startswith("/") else "/" + sub
-                scope["path"] = dest
-                scope["raw_path"] = dest.encode("ascii")
-            elif path == "/api":
-                scope["path"] = "/"
-                scope["raw_path"] = b"/"
+            
+            # 2. Check x-matched-path / x-forwarded-uri header if path looks like internal serverless entrypoint
+            elif path in ("/api/index.py", "/api/index", "/api", "") or path.startswith("/api/index"):
+                matched = (
+                    headers.get(b"x-matched-path")
+                    or headers.get(b"x-forwarded-uri")
+                    or headers.get(b"x-invoke-path")
+                )
+                if matched:
+                    matched_str = matched.decode("latin1", errors="replace")
+                    if "?" in matched_str:
+                        matched_str = matched_str.split("?")[0]
+                    for prefix in ("/api/index.py", "/api/index"):
+                        if matched_str.startswith(prefix):
+                            matched_str = matched_str[len(prefix):]
+                    dest = matched_str if matched_str.startswith("/") else "/" + matched_str
+                    scope["path"] = dest
+                    scope["raw_path"] = dest.encode("ascii")
+                elif path.startswith("/api/index.py/"):
+                    dest = path[len("/api/index.py"):]
+                    scope["path"] = dest
+                    scope["raw_path"] = dest.encode("ascii")
+                elif path.startswith("/api/index/"):
+                    dest = path[len("/api/index"):]
+                    scope["path"] = dest
+                    scope["raw_path"] = dest.encode("ascii")
+                else:
+                    scope["path"] = "/"
+                    scope["raw_path"] = b"/"
 
         await self.inner(scope, receive, send)
 
@@ -117,9 +139,12 @@ async def get_uploaded_image(filename: str):
     svg_code = ImageService.render_fallback_svg(clean_filename)
     return Response(content=svg_code, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})
 
-# Safe mounting of static directory (CSS, JS, fonts)
-if settings.STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(settings.STATIC_DIR)), name="static")
+# Safe mounting of static directory (CSS, JS, fonts) – wrapped in try/except for Vercel
+try:
+    if settings.STATIC_DIR.exists():
+        app.mount("/static", StaticFiles(directory=str(settings.STATIC_DIR)), name="static")
+except Exception as _e_static:
+    print(f"Static files mount notice (non-fatal): {_e_static}")
 
 # Templates for error pages
 templates = Jinja2Templates(directory=str(settings.TEMPLATES_DIR))
