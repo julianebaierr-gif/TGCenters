@@ -84,6 +84,7 @@ from pathlib import Path
 
 # Dedicated, resilient route to serve all uploaded images across local and Vercel environments
 @app.get("/static/uploads/{filename}")
+@app.get("/media/{filename}")
 async def get_uploaded_image(filename: str):
     clean_filename = Path(filename).name
     candidates = [

@@ -175,14 +175,29 @@ document.addEventListener("DOMContentLoaded", () => {
           collisionAlert.classList.add("hidden");
         }
 
-        // Render Outline Preview
+        // Render Outline Preview (H2 to H5 + Semantic Keywords)
         if (outlineList && analysisData.outline) {
           outlineList.innerHTML = analysisData.outline.map((sec, i) => `
-            <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm">
-              <div class="font-bold text-slate-800">H2: ${sec.h2}</div>
+            <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs space-y-1.5">
+              <div class="font-bold text-indigo-300">H2: ${sec.h2}</div>
               ${sec.h3_list && sec.h3_list.length > 0 ? `
-                <div class="mt-1 pl-4 text-xs text-slate-500 space-y-0.5">
-                  ${sec.h3_list.map(h3 => `<div>&bull; H3: ${h3}</div>`).join("")}
+                <div class="pl-3 text-[11px] text-slate-300 space-y-0.5">
+                  ${sec.h3_list.map(h3 => `<div>&bull; <strong>H3:</strong> ${h3}</div>`).join("")}
+                </div>
+              ` : ""}
+              ${sec.h4_list && sec.h4_list.length > 0 ? `
+                <div class="pl-6 text-[10px] text-slate-400 space-y-0.5">
+                  ${sec.h4_list.map(h4 => `<div>&rsaquo; <strong>H4:</strong> ${h4}</div>`).join("")}
+                </div>
+              ` : ""}
+              ${sec.h5_list && sec.h5_list.length > 0 ? `
+                <div class="pl-9 text-[10px] text-slate-500 space-y-0.5">
+                  ${sec.h5_list.map(h5 => `<div>- <em>H5:</em> ${h5}</div>`).join("")}
+                </div>
+              ` : ""}
+              ${sec.semantic_keywords && sec.semantic_keywords.length > 0 ? `
+                <div class="pt-1 flex flex-wrap gap-1">
+                  ${sec.semantic_keywords.map(sk => `<span class="px-1.5 py-0.5 bg-indigo-950/60 border border-indigo-800/40 rounded text-[9px] text-indigo-300 font-mono">#${sk}</span>`).join("")}
                 </div>
               ` : ""}
             </div>

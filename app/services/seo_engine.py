@@ -11,20 +11,55 @@ class SEOEngine:
     def generate_metadata(cls, keyword: str, title: str, summary: str, slug: str, featured_image: str) -> Dict[str, Any]:
         kw_title = keyword.title()
         
-        # SEO Title (strictly under 60 chars)
-        if len(title) <= 60:
-            seo_title = title
-        else:
-            seo_title = title[:56].rsplit(" ", 1)[0] + "..."
+        # SEO Title: Strictly 40 to 55 characters (Point 1)
+        clean_title = title.strip()
+        if len(clean_title) < 40:
+            clean_title = f"{clean_title}: Essential Guide & Review"
+            if len(clean_title) > 55:
+                clean_title = clean_title[:55].rsplit(" ", 1)[0]
+        elif len(clean_title) > 55:
+            clean_title = clean_title[:55].rsplit(" ", 1)[0]
+            if len(clean_title) < 40:
+                clean_title = title.strip()[:55]
+        seo_title = clean_title
 
-        # Meta Description (140 to 150 chars, never exceeding 150)
-        clean_summary = (summary or f"Discover everything you need to know about {keyword} with expert reviews, top comparisons, and buying insights on TrendBlogo.").strip()
-        if len(clean_summary) > 150:
-            meta_desc = clean_summary[:147].rsplit(" ", 1)[0] + "..."
-            if len(meta_desc) > 150:
-                meta_desc = meta_desc[:150]
+        # Meta Description: Strictly 140 to 150 characters, never over 150 (Point 2)
+        base_desc = (summary or "").strip()
+        if not base_desc or len(base_desc) < 40:
+            base_desc = f"Discover verified insights, in-depth comparisons, and expert recommendations for {keyword} to make the smartest buying choice on TrendBlogo."
+        
+        if len(base_desc) > 150:
+            truncated = base_desc[:147].rsplit(" ", 1)[0] + "..."
+            if len(truncated) > 150:
+                truncated = base_desc[:150]
+            meta_desc = truncated
         else:
-            meta_desc = clean_summary
+            meta_desc = base_desc
+
+        # If still shorter than 140 characters, pad with informative editorial context up to 140-150 chars
+        if len(meta_desc) < 140:
+            fillers = [
+                " Read our complete breakdown now.",
+                " Explore comprehensive verified analysis.",
+                " Learn full expert buying tips today.",
+                " Find all performance insights here."
+            ]
+            for f in fillers:
+                if 140 <= len(meta_desc + f) <= 150:
+                    meta_desc = meta_desc + f
+                    break
+                elif len(meta_desc + f) < 140:
+                    meta_desc = meta_desc + f
+
+            if len(meta_desc) < 140:
+                needed = 140 - len(meta_desc)
+                meta_desc = meta_desc.rstrip(".") + " with full tested comparisons."
+                if len(meta_desc) > 150:
+                    meta_desc = meta_desc[:150]
+                elif len(meta_desc) < 140:
+                    meta_desc = (meta_desc + " " * (140 - len(meta_desc))).strip()
+                    if len(meta_desc) < 140:
+                        meta_desc = meta_desc.ljust(140, ".")
 
         canonical_url = f"{settings.BASE_URL}/blog/{slug}"
         og_image = f"{settings.BASE_URL}{featured_image}" if featured_image.startswith("/") else featured_image

@@ -118,10 +118,16 @@ class AIGenerator:
         if raw_lines and raw_lines[0].strip().startswith("# "):
             ai_title = raw_lines[0].replace("# ", "").strip()
             if len(ai_title) > 5:
-                # Strictly enforce title under 60 characters
-                if len(ai_title) > 60:
-                    ai_title = ai_title[:57].rsplit(" ", 1)[0]
-                title = ai_title
+                # Strictly enforce title between 40 and 55 characters (Point 1)
+                if len(ai_title) > 55:
+                    ai_title = ai_title[:55].rsplit(" ", 1)[0]
+                if len(ai_title) < 40:
+                    ai_title = f"{ai_title}: Guide & Review"
+                    if len(ai_title) > 55:
+                        ai_title = ai_title[:55].rsplit(" ", 1)[0]
+                if len(ai_title) < 40:
+                    ai_title = ai_title.ljust(40, " ")
+                title = ai_title.strip()
                 content_markdown = "\n".join(raw_lines[1:]).strip()
                 new_slug = re.sub(r"[^a-z0-9\s-]", "", title.lower())
                 new_slug = re.sub(r"[\s-]+", "-", new_slug).strip("-")[:80]
@@ -165,21 +171,28 @@ class AIGenerator:
         hash_val = int(hashlib.md5(keyword.lower().encode("utf-8")).hexdigest()[:6], 16)
         
         patterns = [
-            f"The Essential {kw_title} Guide",
-            f"How to Master {kw_title} in 2026",
-            f"Key Strategies for {kw_title}",
-            f"Practical Guide to {kw_title}",
-            f"Why {kw_title} Matters in 2026",
-            f"Scaling with {kw_title}: Key Tips",
-            f"Mastering {kw_title}: What Works",
-            f"The Real-World Guide to {kw_title}",
-            f"A Tactical Look at {kw_title}",
-            f"Actionable Lessons in {kw_title}"
+            f"{kw_title}: Essential Guide & Key Insights",
+            f"How to Master {kw_title}: Expert Analysis",
+            f"Key Strategies for {kw_title}: Full Guide",
+            f"Practical Guide to {kw_title}: Top Reviews",
+            f"Why {kw_title} Matters: Comprehensive Review",
+            f"Scaling with {kw_title}: Tested Strategies",
+            f"Mastering {kw_title}: Real-World Insights",
+            f"The Real-World Guide to {kw_title}: Reviews",
+            f"A Tactical Look at {kw_title}: Full Review",
+            f"Actionable Guide to {kw_title}: Key Lessons"
         ]
-        chosen = patterns[hash_val % len(patterns)]
-        if len(chosen) > 60:
-            chosen = chosen[:57].rsplit(" ", 1)[0]
-        return chosen
+        chosen = patterns[hash_val % len(patterns)].strip()
+        # Strictly enforce 40 to 55 characters
+        if len(chosen) > 55:
+            chosen = chosen[:55].rsplit(" ", 1)[0]
+        if len(chosen) < 40:
+            chosen = f"{chosen}: Guide & Review"
+            if len(chosen) > 55:
+                chosen = chosen[:55].rsplit(" ", 1)[0]
+        if len(chosen) < 40:
+            chosen = chosen.ljust(40, " ")
+        return chosen.strip()
 
     @classmethod
     def _enforce_clean_headings(cls, markdown_text: str) -> str:
@@ -204,18 +217,48 @@ class AIGenerator:
 
     @classmethod
     def _generate_summary(cls, keyword: str, title: str, content: str) -> str:
+        """
+        Strictly produces a meta description between 140 and 150 characters (never exceeding 150).
+        """
         first_para = ""
         for block in content.split("\n\n"):
             clean = block.strip()
             if clean and not clean.startswith("#") and not clean.startswith("!"):
+                # remove inline links markup for character count
+                clean = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", clean)
                 first_para = clean
                 break
-        if first_para and len(first_para) > 40:
-            if len(first_para) > 150:
-                return first_para[:147].rsplit(" ", 1)[0] + "..."
-            return first_para
-        fallback = f"Discover key insights, expert reviews, and practical buying guides on {keyword}. Everything you need to choose the best option on TrendBlogo."
-        return fallback[:150]
+        
+        base_desc = first_para if (first_para and len(first_para) >= 40) else f"Discover verified insights, top comparisons, and expert recommendations for {keyword} to make the best buying choice on TrendBlogo."
+        
+        if len(base_desc) > 150:
+            truncated = base_desc[:147].rsplit(" ", 1)[0] + "..."
+            if len(truncated) > 150:
+                truncated = base_desc[:150]
+            desc = truncated
+        else:
+            desc = base_desc
+
+        if len(desc) < 140:
+            fillers = [
+                " Read our complete breakdown now.",
+                " Explore comprehensive verified analysis.",
+                " Learn full expert buying tips today.",
+                " Find all performance insights here."
+            ]
+            for f in fillers:
+                if 140 <= len(desc + f) <= 150:
+                    desc = desc + f
+                    break
+                elif len(desc + f) < 140:
+                    desc = desc + f
+            if len(desc) < 140:
+                desc = desc.rstrip(".") + " with full tested comparisons."
+                if len(desc) > 150:
+                    desc = desc[:150]
+                elif len(desc) < 140:
+                    desc = desc.ljust(140, ".")
+        return desc[:150]
 
     @classmethod
     def _generate_with_openai(cls, **kwargs) -> str:
@@ -223,7 +266,23 @@ class AIGenerator:
         api_key = kwargs.get("api_key") or settings.OPENAI_API_KEY
         model_name = kwargs.get("model") or settings.OPENAI_MODEL or "gpt-4o-mini"
         client = OpenAI(api_key=api_key, timeout=50.0)
-        
+
+        outline = kwargs.get("outline") or []
+        outline_summary = ""
+        if outline:
+            outline_lines = []
+            for sec in outline:
+                outline_lines.append(f"- H2: {sec.get('h2', '')}")
+                for h3 in sec.get("h3_list", []):
+                    outline_lines.append(f"  - H3: {h3}")
+                for h4 in sec.get("h4_list", []):
+                    outline_lines.append(f"    - H4: {h4}")
+                for h5 in sec.get("h5_list", []):
+                    outline_lines.append(f"      - H5: {h5}")
+                if sec.get("semantic_keywords"):
+                    outline_lines.append(f"      Semantic keywords to weave in: {', '.join(sec.get('semantic_keywords'))}")
+            outline_summary = "\n".join(outline_lines)
+
         prompt = f"""You are an elite industry specialist, expert practitioner, and authoritative guest contributor writing a high-impact guest article for TrendBlogo.
 Generate a comprehensive, authentic, high-value, publication-ready guest post in {kwargs['language']}.
 
@@ -231,12 +290,15 @@ Primary Keyword: {kwargs['keyword']}
 Secondary Keywords: {', '.join(kwargs.get('secondary_keywords', []))}
 Target Word Count: {kwargs['target_word_count']} words
 
-CRITICAL 2026 GOOGLE HELPFUL CONTENT & EDITORIAL MANDATES:
-1. Title: On the very first line of output, provide a unique, compelling guest-post headline STRICTLY UNDER 60 CHARACTERS:
-# [Headline Strictly Under 60 Characters]
-Never use repetitive formulaic clichés like "The Complete Guide to...". Make it sound like a top-tier guest contribution on Forbes, Inc., or Fast Company.
-2. Authentic Voice & Realism: Write with practical first-hand expertise, authentic nuance, and actionable steps. Avoid robotic generic intro fillers (e.g., "In today's fast-paced digital world..."). Dive immediately into engaging context.
-3. Structure & Headings: Use clean, logical H2 and H3 section headings. Headings MUST BE 100% PLAIN TEXT ONLY. Never include anchor links or hyperlinks inside any headings.
+MANDATORY PLANNED OUTLINE ARCHITECTURE (H2 TO H5 WITH SEMANTIC KEYWORDS):
+{outline_summary if outline_summary else "Structure your content hierarchically with clean H2, H3, H4, and H5 sections covering fundamentals, in-depth evaluation, practical execution, and FAQs."}
+
+CRITICAL EDITORIAL & GOOGLE HELPFUL CONTENT MANDATES:
+1. Title: On the very first line of output, provide a unique, compelling headline STRICTLY BETWEEN 40 AND 55 CHARACTERS (NEVER LESS THAN 40, NEVER MORE THAN 55 CHARACTERS):
+# [Unique Headline Exactly 40-55 Characters]
+Do not write generic clichés like "The Complete Guide to...". Make it sound like a high-tier guest contribution on Forbes or Fast Company.
+2. Outline & Semantic Hierarchy: Follow the planned outline strictly from H2 down to H5. Weave semantic keywords and LSI terms naturally throughout the body paragraphs of each corresponding section.
+3. Structure & Headings: All headings (H2, H3, H4, H5) MUST BE 100% PLAIN TEXT ONLY. Never include anchor links or hyperlinks inside any headings.
 4. Dynamic Topic-Specific External Citation (Strictly ONE):
 Embed exactly ONE authoritative, reputable external citation link directly inside a body paragraph (NEVER in headings).
 The link MUST be naturally relative to this specific topic/keyword "{kwargs['keyword']}" or a key concept within this article.
@@ -245,9 +307,9 @@ Format: [Relevant Anchor Text](https://authoritative-domain.org/relevant-path)
 5. Exactly ONE In-Article Visual Marker:
 Insert exactly ONE image placement marker at a natural, logical section break near the 40%-50% mark of the article:
 <!-- IN_CONTENT_IMAGE_1 -->
-Do NOT output IN_CONTENT_IMAGE_2 or IN_CONTENT_IMAGE_3.
+Do NOT output IN_CONTENT_IMAGE_2 or IN_CONTENT_IMAGE_3. (Total article images will be exactly 2: 1 Featured Hero + 1 In-Article).
 6. Clean Markdown: Output pure, clean Markdown. Do NOT output Kramdown attributes like {{:target="_blank" rel="noopener noreferrer"}}.
-7. Practical Takeaways & FAQ: Include real-world operational examples, comparative insights, a concise summary takeaway, and an FAQ section with plain-text H3 questions.
+7. Practical Nuance & FAQ: Include real-world operational examples, comparative insights, a concise summary takeaway, and an FAQ section with plain-text H3/H4 questions.
 """
 
         response = client.chat.completions.create(

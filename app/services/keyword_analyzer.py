@@ -191,80 +191,134 @@ class KeywordAnalyzer:
             return [
                 {
                     "h2": f"Understanding {kw_cap}: An Industry Overview",
-                    "h3_list": ["The Evolution of Current Solutions", "Key Selection Criteria"]
+                    "h3_list": ["The Evolution of Current Solutions", "Key Selection Criteria"],
+                    "h4_list": ["Performance Benchmarks", "Core Architectural Parameters"],
+                    "h5_list": ["Measurement Protocols", "Efficiency Thresholds"],
+                    "semantic_keywords": [f"{keyword} overview", f"modern {keyword}", "selection criteria", "evaluation metrics"]
                 },
                 {
                     "h2": f"Top Recommended Options for {kw_cap}",
-                    "h3_list": ["Feature Breakdown & Core Capabilities", "Performance Benchmarks & Usability"]
+                    "h3_list": ["Feature Breakdown & Core Capabilities", "Performance Benchmarks & Usability"],
+                    "h4_list": ["Reliability and Durability Testing", "Cost vs Long-Term Value"],
+                    "h5_list": ["Material & Engineering Standards", "Real-World User Feedback"],
+                    "semantic_keywords": [f"best {keyword}", f"{keyword} features", "performance benchmark", "pros and cons"]
                 },
                 {
-                    "h2": f"Implementation Blueprint and Integration Strategies",
-                    "h3_list": ["Step-by-Step Setup Guide", "Avoiding Common Pitfalls"]
+                    "h2": f"Implementation Blueprint and Practical Guide",
+                    "h3_list": ["Step-by-Step Selection Guide", "Avoiding Common Pitfalls"],
+                    "h4_list": ["Initial Setup Considerations", "Workflow Integration Checklist"],
+                    "h5_list": ["Safety Guidelines", "Optimization Tips"],
+                    "semantic_keywords": [f"{keyword} setup", f"how to use {keyword}", "practical guide", "common mistakes"]
                 },
                 {
                     "h2": f"Comparative Evaluation and Value Matrix",
-                    "h3_list": ["Cost vs ROI Analysis", "Long-Term Scalability Factors"]
+                    "h3_list": ["Cost vs ROI Analysis", "Long-Term Reliability Factors"],
+                    "h4_list": ["Entry-Level vs High-End Models", "Maintenance and Lifecycle"],
+                    "h5_list": ["Warranty Coverage", "Upgrade Considerations"],
+                    "semantic_keywords": [f"{keyword} comparison", f"{keyword} pricing", "roi analysis", "value matrix"]
                 },
                 {
                     "h2": f"Frequently Asked Questions About {kw_cap}",
-                    "h3_list": []
+                    "h3_list": [f"What makes the best {kw_cap}?", f"How do I choose the right {kw_cap} for my needs?"],
+                    "h4_list": ["Maintenance and Upkeep Questions", "Troubleshooting Common Issues"],
+                    "h5_list": ["Expert Answers", "Practical Reference"],
+                    "semantic_keywords": [f"{keyword} faq", f"{keyword} guide", "expert answers", "buying advice"]
                 },
                 {
                     "h2": "Final Takeaways and Expert Recommendation",
-                    "h3_list": []
+                    "h3_list": ["Key Highlights Recap", "Our Top Pick"],
+                    "h4_list": ["Summary of Findings", "Next Steps"],
+                    "h5_list": ["Final Verdict", "Action Checklist"],
+                    "semantic_keywords": ["expert recommendation", "final verdict", "summary", "buying decision"]
                 }
             ]
         elif template == "comparison":
             return [
                 {
                     "h2": f"Executive Summary: {kw_cap}",
-                    "h3_list": ["Core Philosophy and Architecture", "Target Use Cases"]
+                    "h3_list": ["Core Philosophy and Architecture", "Target Use Cases"],
+                    "h4_list": ["Key Differentiators", "Market Positioning"],
+                    "h5_list": ["Baseline Metrics", "Audience Fit"],
+                    "semantic_keywords": [f"{keyword} comparison", f"{keyword} overview", "market analysis", "use cases"]
                 },
                 {
                     "h2": "Feature-by-Feature Deep Dive",
-                    "h3_list": ["Efficiency and Productivity Gains", "User Experience and Learning Curve"]
+                    "h3_list": ["Efficiency and Productivity Gains", "User Experience and Learning Curve"],
+                    "h4_list": ["Functional Capabilities", "Design and Ergonomics"],
+                    "h5_list": ["Interface Responsiveness", "User Satisfaction Scores"],
+                    "semantic_keywords": ["feature breakdown", "user experience", "performance comparison", "functionality"]
                 },
                 {
                     "h2": "Pricing, Licensing, and Total Cost of Ownership",
-                    "h3_list": ["Direct Costs vs Hidden Overheads", "Resource Allocation"]
+                    "h3_list": ["Direct Costs vs Hidden Overheads", "Resource Allocation"],
+                    "h4_list": ["Subscription vs Upfront Cost", "Long-Term Maintenance Cost"],
+                    "h5_list": ["Discount Tiers", "Return on Investment"],
+                    "semantic_keywords": ["pricing comparison", "total cost of ownership", "budget considerations", "value assessment"]
                 },
                 {
                     "h2": "Decision Framework: Which Solution Fits Your Workflow?",
-                    "h3_list": ["When to Choose Option A", "When to Choose Option B"]
+                    "h3_list": ["When to Choose Option A", "When to Choose Option B"],
+                    "h4_list": ["Team and Scale Requirements", "Budget Constraints"],
+                    "h5_list": ["Decision Matrix Checklist", "Migration Factors"],
+                    "semantic_keywords": ["decision matrix", "buying guide", "best choice", "recommendations"]
                 },
                 {
                     "h2": f"Frequently Asked Questions About {kw_cap}",
-                    "h3_list": []
+                    "h3_list": ["Which option offers better long-term durability?", "How do the warranties compare?"],
+                    "h4_list": ["Compatibility Questions", "Support and Service"],
+                    "h5_list": ["Expert Answers", "Practical Clarifications"],
+                    "semantic_keywords": [f"{keyword} faq", "comparison faq", "expert answers", "troubleshooting"]
                 },
                 {
                     "h2": "Final Verdict",
-                    "h3_list": []
+                    "h3_list": ["Overall Winner", "Situational Recommendations"],
+                    "h4_list": ["Category Best", "Budget Pick"],
+                    "h5_list": ["Final Verdict Statement", "Summary"],
+                    "semantic_keywords": ["final verdict", "overall winner", "recommendation", "concluding thoughts"]
                 }
             ]
         else: # Ultimate Guide / How-To
             return [
                 {
                     "h2": f"Foundations of {kw_cap}",
-                    "h3_list": ["Core Principles and Definitions", "Why It Matters in Today's Digital Landscape"]
+                    "h3_list": ["Core Principles and Definitions", "Why It Matters in Today's Digital Landscape"],
+                    "h4_list": ["Essential Background Concepts", "Key Factors Driving Adoption"],
+                    "h5_list": ["Historical Context", "Primary Terminology"],
+                    "semantic_keywords": [f"what is {keyword}", f"{keyword} basics", "fundamentals", "essential principles"]
                 },
                 {
                     "h2": f"Strategic Framework for Mastering {kw_cap}",
-                    "h3_list": ["Key Architecture & Components", "Workflow Optimization Tactics"]
+                    "h3_list": ["Key Architecture & Components", "Workflow Optimization Tactics"],
+                    "h4_list": ["System Components Breakdown", "Performance Drivers"],
+                    "h5_list": ["Execution Mechanics", "Optimization Criteria"],
+                    "semantic_keywords": [f"{keyword} strategies", f"{keyword} framework", "best practices", "workflow"]
                 },
                 {
                     "h2": f"Best Practices and Practical Execution",
-                    "h3_list": ["Actionable Step-by-Step Methodology", "Quality Assurance and Monitoring"]
+                    "h3_list": ["Actionable Step-by-Step Methodology", "Quality Assurance and Monitoring"],
+                    "h4_list": ["Pre-Implementation Checklist", "Execution Protocol"],
+                    "h5_list": ["Verification Metrics", "Common Mistakes to Avoid"],
+                    "semantic_keywords": [f"how to use {keyword}", "step by step guide", "execution checklist", "quality assurance"]
                 },
                 {
                     "h2": "Advanced Tactics and Emerging Trends",
-                    "h3_list": ["Automation & Efficiency Multipliers", "Future-Proofing Your Approach"]
+                    "h3_list": ["Automation & Efficiency Multipliers", "Future-Proofing Your Approach"],
+                    "h4_list": ["Cutting-Edge Techniques", "Industry Innovations"],
+                    "h5_list": ["Near-Term Developments", "Long-Term Trajectory"],
+                    "semantic_keywords": [f"{keyword} trends", "advanced tactics", "future proofing", "industry insights"]
                 },
                 {
                     "h2": f"Frequently Asked Questions About {kw_cap}",
-                    "h3_list": []
+                    "h3_list": [f"What is the most effective approach to {kw_cap}?", f"How long does it take to see results with {kw_cap}?"],
+                    "h4_list": ["Practical Guidance Queries", "Troubleshooting Advice"],
+                    "h5_list": ["Expert Answers", "Practical Details"],
+                    "semantic_keywords": [f"{keyword} questions", f"{keyword} faq", "expert answers", "guidance"]
                 },
                 {
                     "h2": "Summary and Next Steps",
-                    "h3_list": []
+                    "h3_list": ["Key Takeaways Recap", "Recommended Action Plan"],
+                    "h4_list": ["Implementation Timeline", "Resource Checklist"],
+                    "h5_list": ["Final Words", "Action Items"],
+                    "semantic_keywords": ["key takeaways", "action plan", "summary", "next steps"]
                 }
             ]

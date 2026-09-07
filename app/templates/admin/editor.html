@@ -120,7 +120,7 @@
           </div>
           <div class="flex items-center justify-between py-1">
             <span class="text-slate-400">Visual Assets</span>
-            <span class="font-bold text-cyan-400 font-mono">4 Images (1 Hero + 3 Body)</span>
+            <span class="font-bold text-cyan-400 font-mono">2 Images (1 Hero + 1 Body)</span>
           </div>
         </div>
       </div>
@@ -129,21 +129,21 @@
 
   </div>
 
-  <!-- 4-Images Management Section -->
+  <!-- 2-Images Management Section -->
   <div class="p-6 bg-slate-950 border border-slate-800 rounded-2xl space-y-6">
     <div class="flex items-center justify-between pb-3 border-b border-slate-800">
       <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center">
-        <i data-lucide="image" class="w-4 h-4 mr-2 text-purple-400"></i> Visual Assets (1 Featured + 3 Body = 4 Total)
+        <i data-lucide="image" class="w-4 h-4 mr-2 text-purple-400"></i> Visual Assets (1 Featured Hero + 1 In-Article = 2 Total)
       </h3>
-      <span class="text-xs text-slate-500 font-mono">Context-specific graphics</span>
+      <span class="text-xs text-slate-500 font-mono">Context-specific authentic visuals</span>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       
       <!-- Featured Image -->
       <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
         <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">1. Featured / Hero Image</span>
-        <img src="{{ article.featured_image }}" alt="" class="w-full h-24 object-cover rounded-lg bg-slate-950">
+        <img src="{{ article.featured_image }}" alt="" class="w-full h-36 object-cover rounded-lg bg-slate-950">
         <div>
           <label class="block text-[10px] font-semibold text-slate-400 mb-1">Alt Text</label>
           <input type="text" name="featured_image_alt" value="{{ article.featured_image_alt }}" class="w-full px-2 py-1.5 bg-slate-950 border border-slate-800 rounded text-xs text-white outline-none">
@@ -152,23 +152,9 @@
 
       <!-- In-Article Image 1 -->
       <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
-        <span class="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">2. In-Article Image #1</span>
-        <img src="{{ article.image_1_url or article.featured_image }}" alt="" class="w-full h-24 object-cover rounded-lg bg-slate-950">
+        <span class="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">2. In-Article Body Image</span>
+        <img src="{{ article.image_1_url or article.featured_image }}" alt="" class="w-full h-36 object-cover rounded-lg bg-slate-950">
         <div class="text-[11px] text-slate-400 truncate">{{ article.image_1_alt }}</div>
-      </div>
-
-      <!-- In-Article Image 2 -->
-      <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
-        <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">3. In-Article Image #2</span>
-        <img src="{{ article.image_2_url or article.featured_image }}" alt="" class="w-full h-24 object-cover rounded-lg bg-slate-950">
-        <div class="text-[11px] text-slate-400 truncate">{{ article.image_2_alt }}</div>
-      </div>
-
-      <!-- In-Article Image 3 -->
-      <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
-        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">4. In-Article Image #3</span>
-        <img src="{{ article.image_3_url or article.featured_image }}" alt="" class="w-full h-24 object-cover rounded-lg bg-slate-950">
-        <div class="text-[11px] text-slate-400 truncate">{{ article.image_3_alt }}</div>
       </div>
 
     </div>
@@ -184,7 +170,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
       <div>
-        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">SEO Title Tag (50-60 chars)</label>
+        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">SEO Title Tag (Strictly 40-55 chars)</label>
         <input type="text" name="seo_title" value="{{ article.seo_title or '' }}" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500">
       </div>
       <div>
@@ -194,7 +180,7 @@
     </div>
 
     <div>
-      <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Meta Description (150-160 chars)</label>
+      <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Meta Description (Strictly 140-150 chars)</label>
       <textarea name="meta_description" rows="2" class="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500">{{ article.meta_description or '' }}</textarea>
     </div>
   </div>

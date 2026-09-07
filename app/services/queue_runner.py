@@ -86,7 +86,7 @@ class QueueRunner:
             # Final sanitize headings: guarantee NO hyperlinks in headings
             final_markdown = LinkEngine.sanitize_headings(final_markdown)
 
-            job.current_step = "Generating 4 contextual visual assets (1 featured + 3 in-article)"
+            job.current_step = "Generating 2 contextual visual assets (1 featured hero + 1 in-article)"
             job.progress = 65
             db.commit()
 

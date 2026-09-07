@@ -103,8 +103,8 @@ class ImageService:
         api_key: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Generates exactly 4 images (1 featured + 3 in-article).
-        Uses OpenAI DALL-E 3 with the provided or configured API key.
+        Generates exactly 2 images (1 featured hero + 1 in-article).
+        Uses OpenAI DALL-E / GPT-Image with the provided or configured API key.
         """
         prompt_specs = cls.generate_image_prompts(keyword, title, outline_sections)
         results = {}
@@ -229,19 +229,7 @@ class ImageService:
             "all_images": results
         }
 
-    @classmethod
-    def render_fallback_svg(cls, filename: str) -> str:
-        clean_name = (
-            filename.replace("-featured.png", "")
-            .replace("-in_article_1.png", "")
-            .replace("-in_article_2.png", "")
-            .replace("-in_article_3.png", "")
-            .replace(".png", "")
-            .replace(".svg", "")
-        )
-        title = clean_name.replace("-", " ").title()
-        palette = cls.PALETTES[0]
-        return cls._render_vector_image(title, "Featured Article", "featured", palette, 0)
+    PALETTES = THEME_PALETTES
 
     @classmethod
     def _render_vector_image(cls, title: str, subtitle: str, img_type: str, palette: Dict[str, str], idx: int) -> str:

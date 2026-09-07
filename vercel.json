@@ -8,7 +8,11 @@
   "rewrites": [
     {
       "source": "/static/uploads/(.*)",
-      "destination": "/api/index.py?__vercel_path=/static/uploads/$1"
+      "destination": "/api/index.py/static/uploads/$1"
+    },
+    {
+      "source": "/media/(.*)",
+      "destination": "/api/index.py/static/uploads/$1"
     },
     {
       "source": "/static/(.*)",
@@ -16,7 +20,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/api/index.py?__vercel_path=$1"
+      "destination": "/api/index.py/$1"
     }
   ]
 }

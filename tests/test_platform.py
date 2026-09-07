@@ -601,6 +601,50 @@ def test_automated_internal_and_external_linking():
     finally:
         db.close()
 
+def test_six_point_requirements():
+    """
+    Test user requirements:
+    1. Title: 40 to 55 characters strictly.
+    2. Meta Description: 140 to 150 characters strictly.
+    3. Outline: structured from H2 down to H5 with semantic keywords.
+    4. Two images spec: exactly 2 images (1 featured + 1 in-article).
+    """
+    from app.services.seo_engine import SEOEngine
+    from app.services.keyword_analyzer import KeywordAnalyzer
+    from app.services.ai_generator import AIGenerator
+    from app.services.image_service import ImageService
+
+    # 1. Title length validation
+    test_keywords = ["running shoes", "best laptops", "ai automation tools", "minimalist living"]
+    for kw in test_keywords:
+        t = AIGenerator._generate_title(kw, "informational", "ultimate_guide")
+        assert 40 <= len(t) <= 55, f"Title '{t}' length {len(t)} not in [40, 55]"
+
+    # 2. Meta description length validation
+    for kw in test_keywords:
+        meta = SEOEngine.generate_metadata(kw, "Running Shoes: Essential Guide & Full Review", "Sample summary", "test-slug", "/static/uploads/test.png")
+        desc = meta["meta_description"]
+        assert 140 <= len(desc) <= 150, f"Meta description '{desc}' length {len(desc)} not in [140, 150]"
+
+    # 3. Outline H2 down to H5 with semantic keywords
+    analysis = KeywordAnalyzer.analyze("running shoes")
+    outline = analysis["outline"]
+    assert len(outline) >= 3
+    for sec in outline:
+        assert "h2" in sec
+        assert "h3_list" in sec
+        assert "h4_list" in sec
+        assert "h5_list" in sec
+        assert "semantic_keywords" in sec
+        assert len(sec["h3_list"]) > 0 or len(sec["h4_list"]) > 0
+
+    # 4. Exactly 2 images spec
+    prompts = ImageService.generate_image_prompts("running shoes", "Running Shoes: Essential Guide & Full Review", outline)
+    assert len(prompts) == 2
+    assert prompts[0]["type"] == "featured"
+    assert prompts[1]["type"] == "in_article_1"
+
+
 
 
 
