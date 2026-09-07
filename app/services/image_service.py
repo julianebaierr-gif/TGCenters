@@ -18,39 +18,47 @@ class ImageService:
     def generate_image_prompts(cls, keyword: str, title: str, outline_sections: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         """
         Creates exactly 2 prompt specs (1 Featured Hero + 1 In-Article Image).
-        Prompts are designed for authentic, professional real-life photography.
+        Prompts are designed for authentic, photorealistic commercial/editorial photography
+        matching real-world professional studio & workplace photography (candid, natural lighting, real humans/products).
         """
         prompts = []
         
-        # 1. Featured Image (Authentic Real-Life Photography)
+        # 1. Featured Image (Authentic High-End Editorial Photograph)
         prompts.append({
             "type": "featured",
-            "section_title": "Featured Overview",
+            "section_title": "Featured Hero",
             "prompt": (
-                f"A high-quality, authentic editorial photograph representing '{keyword}'. "
-                f"Realistic scene with genuine natural lighting, shallow depth of field with soft bokeh background blur, "
-                f"captured with a professional 50mm f/1.8 lens. Relatable human, workplace, or practical everyday context, "
-                f"sharp focus, natural color grading, lifelike textures. "
-                f"No 3D renders, no CGI, no futuristic neon lines, no abstract digital art."
+                f"A professional, ultra-realistic commercial editorial photograph of {keyword}. "
+                f"Authentic real-world environment with genuine people in a modern studio or bright contemporary creative workspace. "
+                f"Shot on 35mm full-frame camera with 85mm f/1.4 lens, natural daylight, soft realistic shadows, subtle film grain, "
+                f"sharp foreground details, beautiful organic bokeh background. Realistic human skin tones, natural workplace interactions, "
+                f"tangible textures, crisp product details. "
+                f"Strictly no CGI, no 3D rendering, no digital illustration, no sci-fi glow, no cartoon, no vector art."
             ),
-            "alt_text": f"{title} - Featured authentic photo",
-            "caption": f"Practical overview and real-world perspective on {keyword}."
+            "alt_text": f"{title} - Comprehensive Guide and Review",
+            "caption": f"Professional overview and real-world perspective on {keyword}."
         })
 
-        # 2. In-Article Image (Contextual Real-Life Photo)
-        sec1_title = outline_sections[0]["h2"] if len(outline_sections) > 0 else f"{keyword} In Action"
-        clean_sec1 = sec1_title.replace("##", "").strip()
+        # 2. In-Article Image (Contextual Real-Life Hands-On Photo - Distinct from Hero)
+        sec_title = "In-Depth Exploration"
+        for s in outline_sections:
+            cand = s.get("h2", "").replace("##", "").strip()
+            if cand and "FAQ" not in cand and "Takeaway" not in cand and "Verdict" not in cand:
+                sec_title = cand
+                break
+
         prompts.append({
             "type": "in_article_1",
-            "section_title": clean_sec1,
+            "section_title": sec_title,
             "prompt": (
-                f"Candid documentary-style photograph illustrating '{clean_sec1}' for '{keyword}'. "
-                f"Real-world practical setting, natural ambient daylight, crisp depth of field, "
-                f"authentic objects and human details, genuine professional atmosphere. "
-                f"Photorealistic, warm natural tone, no cartoons, no artificial sci-fi graphics, no illustration."
+                f"A candid documentary-style lifestyle photograph focused on practical application of '{keyword}' in a real-world setting. "
+                f"People actively collaborating or working at a wooden workbench/desk, hands-on detail, natural ambient lighting streaming through large windows, "
+                f"shallow depth of field, authentic environment with everyday objects, lifelike physical textures. "
+                f"Captured on Canon EOS R5 with 50mm lens, photorealistic color grading. "
+                f"Strictly real photography only, no 3D computer graphics, no artificial fantasy elements, no digital drawing."
             ),
-            "alt_text": f"{clean_sec1} - In-depth editorial visual",
-            "caption": f"Real-world application and workflow details for {clean_sec1}."
+            "alt_text": f"{sec_title} - Practical real-world application",
+            "caption": f"Hands-on analysis and real-world execution for {sec_title}."
         })
 
         return prompts

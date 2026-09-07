@@ -28,9 +28,11 @@
       {{ article.title }}
     </h1>
 
-    <p class="font-editorial text-lg sm:text-xl text-slate-600 leading-relaxed italic border-l-4 border-indigo-600 pl-4 py-1">
+    {% if article.meta_description or article.summary %}
+    <p class="font-editorial text-lg sm:text-xl text-slate-700 leading-relaxed italic border-l-4 border-indigo-600 pl-4 py-1.5 my-4 bg-slate-50/50 rounded-r-lg">
       {{ article.meta_description or article.summary }}
     </p>
+    {% endif %}
 
     <!-- Byline & Social Share -->
     <div class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-200 text-xs">

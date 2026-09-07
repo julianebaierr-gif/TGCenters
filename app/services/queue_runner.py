@@ -109,7 +109,14 @@ class QueueRunner:
                 if "<!-- IN_CONTENT_IMAGE_1 -->" in final_markdown:
                     final_markdown = final_markdown.replace("<!-- IN_CONTENT_IMAGE_1 -->", img1_md)
                 else:
-                    final_markdown += img1_md
+                    # Place in the middle of article blocks (around 45-50% mark)
+                    blocks = final_markdown.split("\n\n")
+                    if len(blocks) > 4:
+                        mid = len(blocks) // 2
+                        blocks.insert(mid, img1_md.strip())
+                        final_markdown = "\n\n".join(blocks)
+                    else:
+                        final_markdown += img1_md
 
             # Clean any leftover markers or Kramdown syntax
             final_markdown = final_markdown.replace("<!-- IN_CONTENT_IMAGE_2 -->", "")
