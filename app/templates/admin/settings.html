@@ -122,44 +122,48 @@
           <p class="text-[10px] text-slate-500 mt-1.5">GPT-4o Mini provides top-tier SEO articles with high generation speed and minimal API cost.</p>
         </div>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center">
-            <i data-lucide="image" class="w-3.5 h-3.5 mr-1.5 text-cyan-400"></i>
-            Visual Image Engine (4 Images / Article)
+        <div class="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-2">
+          <input type="hidden" name="image_provider" value="openai">
+          <label class="block text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center">
+            <i data-lucide="camera" class="w-4 h-4 mr-1.5 text-emerald-400"></i>
+            Real Photography Engine (100% ChatGPT / OpenAI API)
           </label>
-          <select name="image_provider" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500 transition">
-            <option value="auto" {% if settings_dict.get('image_provider') == 'auto' or not settings_dict.get('image_provider') %}selected{% endif %}>Auto (OpenAI DALL-E 3 with Vector Fallback)</option>
-            <option value="openai" {% if settings_dict.get('image_provider') == 'openai' %}selected{% endif %}>OpenAI DALL-E 3 Exclusively</option>
-            <option value="procedural_vector" {% if settings_dict.get('image_provider') == 'procedural_vector' %}selected{% endif %}>High-Aesthetic Procedural Vector Engine (No API Cost)</option>
-          </select>
-          <p class="text-[10px] text-slate-500 mt-1.5">"Auto" uses DALL-E 3 for 1 hero cover + 3 section images, and safely falls back if credits run low.</p>
+          <div class="flex items-center space-x-2">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+              OpenAI API Exclusively Connected
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed pt-1">
+            Every keyword automatically generates 2 unique, authentic real-life documentary photographs (1 Featured Hero + 1 In-Article Midpoint) directly through your OpenAI API. No stock photos, no 3D graphics, no external fallbacks.
+          </p>
         </div>
       </div>
 
       <!-- Feature Capabilities Highlight -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-        <div class="p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl space-y-1">
+        <div class="p-3.5 bg-slate-900/60 border border-slate-800/80 rounded-xl space-y-1">
           <div class="text-[11px] font-bold text-indigo-300 flex items-center">
             <i data-lucide="file-text" class="w-3.5 h-3.5 mr-1.5 text-indigo-400"></i>
             Full-Length Articles
           </div>
-          <p class="text-[10px] text-slate-400">ChatGPT generates 1500+ words with markdown, key takeaways, and FAQ sections.</p>
+          <p class="text-[10px] text-slate-400">ChatGPT writes 1500+ words strictly following H2-H5 outline and semantic keywords.</p>
         </div>
 
-        <div class="p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl space-y-1">
-          <div class="text-[11px] font-bold text-cyan-300 flex items-center">
-            <i data-lucide="image" class="w-3.5 h-3.5 mr-1.5 text-cyan-400"></i>
-            4 Visual Images
-          </div>
-          <p class="text-[10px] text-slate-400">1 Featured Hero + 3 in-content section illustrations generated per article.</p>
-        </div>
-
-        <div class="p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl space-y-1">
+        <div class="p-3.5 bg-slate-900/60 border border-slate-800/80 rounded-xl space-y-1">
           <div class="text-[11px] font-bold text-emerald-300 flex items-center">
-            <i data-lucide="shield-check" class="w-3.5 h-3.5 mr-1.5 text-emerald-400"></i>
-            Zero-Failure Fallback
+            <i data-lucide="camera" class="w-3.5 h-3.5 mr-1.5 text-emerald-400"></i>
+            2 Unique Real Photos
           </div>
-          <p class="text-[10px] text-slate-400">If your OpenAI quota is ever exceeded, TrendBlogo smoothly switches to native generator.</p>
+          <p class="text-[10px] text-slate-400">1 Featured Cover (establishing wide shot) + 1 In-Article Midpoint (candid hands-on detail).</p>
+        </div>
+
+        <div class="p-3.5 bg-slate-900/60 border border-slate-800/80 rounded-xl space-y-1">
+          <div class="text-[11px] font-bold text-cyan-300 flex items-center">
+            <i data-lucide="sun" class="w-3.5 h-3.5 mr-1.5 text-cyan-400"></i>
+            100% Real Photography
+          </div>
+          <p class="text-[10px] text-slate-400">Natural daylight, authentic environments, documentary street/tabletop realism. Zero CGI.</p>
         </div>
       </div>
     </div>

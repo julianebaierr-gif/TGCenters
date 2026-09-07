@@ -15,31 +15,19 @@ class ImageService:
     ]
 
     @classmethod
-    def generate_image_prompts(cls, keyword: str, title: str, outline_sections: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    def generate_image_prompts(
+        cls,
+        keyword: str,
+        title: str,
+        outline_sections: List[Dict[str, Any]],
+        client: Optional[Any] = None
+    ) -> List[Dict[str, str]]:
         """
         Creates exactly 2 prompt specs (1 Featured Hero + 1 In-Article Image).
-        Prompts are designed for authentic, photorealistic commercial/editorial photography
-        matching real-world professional studio & workplace photography (candid, natural lighting, real humans/products).
+        Prompts are designed for authentic, photorealistic real-life documentary/street/product photography
+        matching the style of genuine snapshots taken in natural sunlight (storefronts, paper plates, concrete sidewalks, real textures).
         """
-        prompts = []
-        
-        # 1. Featured Image (Authentic High-End Editorial Photograph)
-        prompts.append({
-            "type": "featured",
-            "section_title": "Featured Hero",
-            "prompt": (
-                f"A professional, ultra-realistic commercial editorial photograph of {keyword}. "
-                f"Authentic real-world environment with genuine people in a modern studio or bright contemporary creative workspace. "
-                f"Shot on 35mm full-frame camera with 85mm f/1.4 lens, natural daylight, soft realistic shadows, subtle film grain, "
-                f"sharp foreground details, beautiful organic bokeh background. Realistic human skin tones, natural workplace interactions, "
-                f"tangible textures, crisp product details. "
-                f"Strictly no CGI, no 3D rendering, no digital illustration, no sci-fi glow, no cartoon, no vector art."
-            ),
-            "alt_text": f"{title} - Comprehensive Guide and Review",
-            "caption": f"Professional overview and real-world perspective on {keyword}."
-        })
-
-        # 2. In-Article Image (Contextual Real-Life Hands-On Photo - Distinct from Hero)
+        # 1. Default fallback photographic prompts (strict real-world documentary aesthetic)
         sec_title = "In-Depth Exploration"
         for s in outline_sections:
             cand = s.get("h2", "").replace("##", "").strip()
@@ -47,39 +35,114 @@ class ImageService:
                 sec_title = cand
                 break
 
-        prompts.append({
-            "type": "in_article_1",
-            "section_title": sec_title,
-            "prompt": (
-                f"A candid documentary-style lifestyle photograph focused on practical application of '{keyword}' in a real-world setting. "
-                f"People actively collaborating or working at a wooden workbench/desk, hands-on detail, natural ambient lighting streaming through large windows, "
-                f"shallow depth of field, authentic environment with everyday objects, lifelike physical textures. "
-                f"Captured on Canon EOS R5 with 50mm lens, photorealistic color grading. "
-                f"Strictly real photography only, no 3D computer graphics, no artificial fantasy elements, no digital drawing."
-            ),
-            "alt_text": f"{sec_title} - Practical real-world application",
-            "caption": f"Hands-on analysis and real-world execution for {sec_title}."
-        })
+        featured_prompt = (
+            f"An authentic, candid real-life photograph capturing the subject '{keyword}'. "
+            f"A wide or medium establishing street-level or environmental documentary scene in bright natural daylight. "
+            f"Real-world architecture, authentic painted storefront facade with vintage lettering, aged brick, glass window reflections "
+            f"showing city street, concrete sidewalk with natural sun shadows, genuine surroundings. "
+            f"Captured on an iPhone 15 Pro or 35mm lens, raw unretouched documentary photography, natural colors, realistic depth of field. "
+            f"Strictly a real photograph: zero CGI, zero 3D rendering, zero digital illustration, zero cartoon, zero vector graphics, zero sci-fi neon."
+        )
 
-        return prompts
+        in_article_prompt = (
+            f"An authentic, candid close-up tabletop photograph focusing on practical real-life '{keyword}'. "
+            f"Resting on a white paper plate or sunlit surface outdoors in direct natural midday sunlight, casting crisp realistic shadows. "
+            f"Rich tangible physical textures, visible details, natural background with greenery or everyday environment. "
+            f"Casual documentary snapshot taken with a modern smartphone camera in bright daytime. "
+            f"Strictly a real photograph: zero 3D graphics, zero digital drawing, zero vector art, zero artificial studio rendering."
+        )
+
+        featured_alt = f"{title} - Real World Guide and Analysis"
+        featured_caption = f"Authentic perspective and real-world overview of {keyword}."
+        in_article_alt = f"{sec_title} - Hands-On Real-World Application"
+        in_article_caption = f"Hands-on detail and practical perspective for {sec_title}."
+
+        # 2. If OpenAI client is available, let ChatGPT craft specialized custom photo prompts for this exact topic
+        if client:
+            try:
+                import json
+                chat_resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are an award-winning documentary photojournalist and commercial street photographer. "
+                                "Write two distinct, ultra-realistic real-life photography prompts for OpenAI DALL-E based on the user's article topic and outline.\n\n"
+                                "MANDATORY PHOTOGRAPHIC STYLE RULES:\n"
+                                "1. Real-World Authentic Photography Only: Must look like a real, raw, candid photograph captured in the real physical world (shot on an iPhone 15 Pro, Leica Q3, or Canon EOS R5 with 35mm/50mm f/1.8 lens in direct natural daylight).\n"
+                                "2. Natural Lighting & Shadows: Bright natural sunlight, afternoon sun with soft realistic directional shadows, or natural bright window daylight. Real atmospheric light and organic reflections.\n"
+                                "3. Real Textures & Environments: Tangible real-world details — sunlit concrete curbs, aged brick walls, painted wooden storefronts with gold lettering, glass window reflections of city streets, real food on paper plates, wooden tabletops, authentic clothing fabrics, real human hands or people interacting.\n"
+                                "4. STRICT PROHIBITIONS: Absolutely NO CGI, NO 3D rendering, NO digital art, NO illustration, NO vector graphics, NO sci-fi glow, NO neon, NO cartoon, NO plastic smoothness, NO artificial studio backdrops.\n\n"
+                                "SPECIFICATIONS FOR THE 2 IMAGES:\n"
+                                "- Image 1 (Featured Cover / Hero): Wide or medium establishing shot in a real-world setting (e.g. authentic building storefront, street sidewalk scene, workshop, or outdoor environment in natural sunlight).\n"
+                                "- Image 2 (In-Article Midpoint): A close-up, tabletop, or hands-on candid detail snapshot showing the physical subject, meal, tool, or product in action (e.g. food on a paper plate, hand holding an item, rich tangible textures, shallow depth of field).\n\n"
+                                "Respond with a JSON object:\n"
+                                "{\n"
+                                '  "featured_prompt": "A real photograph of...",\n'
+                                '  "featured_alt": "Detailed descriptive alt text",\n'
+                                '  "featured_caption": "Short photojournalistic caption",\n'
+                                '  "in_article_prompt": "A close-up real photograph of...",\n'
+                                '  "in_article_alt": "Detailed descriptive alt text",\n'
+                                '  "in_article_caption": "Short photojournalistic caption"\n'
+                                "}"
+                            )
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Topic / Keyword: {keyword}\nTitle: {title}\nKey Outline Sections: {sec_title}"
+                        }
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.7,
+                    timeout=15.0
+                )
+                data = json.loads(chat_resp.choices[0].message.content)
+                if data.get("featured_prompt"):
+                    featured_prompt = data["featured_prompt"]
+                if data.get("featured_alt"):
+                    featured_alt = data["featured_alt"]
+                if data.get("featured_caption"):
+                    featured_caption = data["featured_caption"]
+                if data.get("in_article_prompt"):
+                    in_article_prompt = data["in_article_prompt"]
+                if data.get("in_article_alt"):
+                    in_article_alt = data["in_article_alt"]
+                if data.get("in_article_caption"):
+                    in_article_caption = data["in_article_caption"]
+            except Exception as e_chat:
+                pass
+
+        return [
+            {
+                "type": "featured",
+                "section_title": "Featured Hero",
+                "prompt": featured_prompt,
+                "alt_text": featured_alt,
+                "caption": featured_caption
+            },
+            {
+                "type": "in_article_1",
+                "section_title": sec_title,
+                "prompt": in_article_prompt,
+                "alt_text": in_article_alt,
+                "caption": in_article_caption
+            }
+        ]
 
     @classmethod
     def get_active_credentials(cls, db: Optional[Any] = None) -> Tuple[str, str]:
         from app.models.settings import SiteSetting
         api_key = ""
-        provider = "auto"
+        provider = "openai"
         if db:
             try:
                 s_key = db.query(SiteSetting).filter(SiteSetting.key == "openai_api_key").first()
                 if s_key and s_key.value and s_key.value.strip():
                     api_key = s_key.value.strip()
-                s_prov = db.query(SiteSetting).filter(SiteSetting.key == "image_provider").first()
-                if s_prov and s_prov.value and s_prov.value.strip():
-                    provider = s_prov.value.strip()
             except Exception:
                 pass
 
-        
         if not api_key:
             try:
                 from app.database import SessionLocal
@@ -87,16 +150,11 @@ class ImageService:
                     s_key = session.query(SiteSetting).filter(SiteSetting.key == "openai_api_key").first()
                     if s_key and s_key.value and s_key.value.strip():
                         api_key = s_key.value.strip()
-                    s_prov = session.query(SiteSetting).filter(SiteSetting.key == "image_provider").first()
-                    if s_prov and s_prov.value and s_prov.value.strip():
-                        provider = s_prov.value.strip()
             except Exception:
                 pass
                 
         if not api_key:
             api_key = (settings.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY", "")).strip()
-        if provider == "auto" and settings.IMAGE_GENERATION_PROVIDER != "auto":
-            provider = settings.IMAGE_GENERATION_PROVIDER
             
         return api_key, provider
 
@@ -111,11 +169,9 @@ class ImageService:
         api_key: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Generates exactly 2 images (1 featured hero + 1 in-article).
-        Uses OpenAI DALL-E / GPT-Image with the provided or configured API key.
+        Generates exactly 2 unique real-life photographs (1 featured hero + 1 in-article)
+        exclusively using the ChatGPT / OpenAI API.
         """
-        prompt_specs = cls.generate_image_prompts(keyword, title, outline_sections)
-        results = {}
         if api_key and api_key.strip():
             active_key = api_key.strip()
         else:
@@ -131,24 +187,20 @@ class ImageService:
         import urllib.request
         import concurrent.futures
 
-        client = OpenAI(api_key=active_key, timeout=45.0)
+        client = OpenAI(api_key=active_key, timeout=60.0)
         os.makedirs(settings.UPLOADS_DIR, exist_ok=True)
 
-        # Detect available image models from OpenAI (prioritize dall-e-2 / dall-e-3)
-        candidate_models = ["dall-e-2", "dall-e-3", "gpt-image-1-mini", "gpt-image-1"]
-        try:
-            m_list = client.models.list()
-            avail = {m.id for m in m_list.data}
-            detected = [c for c in candidate_models if c in avail]
-            if detected:
-                candidate_models = detected + [c for c in candidate_models if c not in detected]
-        except Exception:
-            pass
+        # Generate custom documentary photo prompts using ChatGPT
+        prompt_specs = cls.generate_image_prompts(keyword, title, outline_sections, client=client)
+        results = {}
+
+        # Candidate OpenAI image models (prioritize DALL-E 3 for high-fidelity realism)
+        candidate_models = ["dall-e-3", "dall-e-2"]
 
         def _generate_one(spec_with_idx):
             idx, spec = spec_with_idx
             img_type = spec["type"]
-            img_prompt = spec["prompt"][:950]
+            img_prompt = spec["prompt"][:1000]
             img_bytes = None
             last_err = None
 
@@ -169,7 +221,7 @@ class ImageService:
                         break
                     elif img_url:
                         req_dl = urllib.request.Request(img_url, headers={"User-Agent": "TrendBlogo/2.0"})
-                        with urllib.request.urlopen(req_dl, timeout=30.0) as dl_resp:
+                        with urllib.request.urlopen(req_dl, timeout=35.0) as dl_resp:
                             img_bytes = dl_resp.read()
                         break
                 except Exception as e_gen:
@@ -181,13 +233,16 @@ class ImageService:
                 png_path = settings.UPLOADS_DIR / png_filename
                 with open(png_path, "wb") as f_png:
                     f_png.write(img_bytes)
-                root_uploads = settings.BASE_DIR / "static" / "uploads"
-                if root_uploads.exists() and root_uploads != settings.UPLOADS_DIR:
+
+                # Mirror to all static upload locations
+                for mirror_dir in [settings.BASE_DIR / "static" / "uploads", settings.BASE_DIR / "app" / "static" / "uploads"]:
                     try:
-                        with open(root_uploads / png_filename, "wb") as f_r:
-                            f_r.write(img_bytes)
+                        mirror_dir.mkdir(parents=True, exist_ok=True)
+                        with open(mirror_dir / png_filename, "wb") as f_m:
+                            f_m.write(img_bytes)
                     except Exception:
                         pass
+
                 rel_url = f"/static/uploads/{png_filename}"
                 return (img_type, {
                     "url": rel_url,
@@ -198,30 +253,10 @@ class ImageService:
                     "prompt": spec["prompt"]
                 })
             else:
-                # Graceful fallback to vector SVG so article generation never halts
-                print(f"[ImageService] OpenAI generation notice ({img_type}): {last_err}. Generating vector SVG asset.")
-                palette = cls.PALETTES[idx % len(cls.PALETTES)]
-                svg_code = cls._render_vector_image(title, spec["section_title"], img_type, palette, idx)
-                svg_filename = f"{slug}-{img_type}.svg"
-                svg_path = settings.UPLOADS_DIR / svg_filename
-                with open(svg_path, "w", encoding="utf-8") as f_svg:
-                    f_svg.write(svg_code)
-                root_uploads = settings.BASE_DIR / "static" / "uploads"
-                if root_uploads.exists() and root_uploads != settings.UPLOADS_DIR:
-                    try:
-                        with open(root_uploads / svg_filename, "w", encoding="utf-8") as f_r:
-                            f_r.write(svg_code)
-                    except Exception:
-                        pass
-                rel_url = f"/static/uploads/{svg_filename}"
-                return (img_type, {
-                    "url": rel_url,
-                    "file_path": str(svg_path),
-                    "filename": svg_filename,
-                    "alt": spec["alt_text"],
-                    "caption": spec["caption"],
-                    "prompt": spec["prompt"]
-                })
+                raise RuntimeError(
+                    f"Failed to generate real photograph for '{img_type}' via OpenAI API: {last_err}. "
+                    f"Please verify that your OpenAI API Key has active image generation credits."
+                )
 
         # Generate the 2 images in parallel (max_workers=2)
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
@@ -232,10 +267,11 @@ class ImageService:
         return {
             "featured": results.get("featured"),
             "image_1": results.get("in_article_1"),
-            "image_2": results.get("in_article_2"),
-            "image_3": results.get("in_article_3"),
+            "image_2": None,
+            "image_3": None,
             "all_images": results
         }
+
 
     PALETTES = THEME_PALETTES
 
