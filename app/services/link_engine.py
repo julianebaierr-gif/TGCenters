@@ -40,19 +40,7 @@ class LinkEngine:
         existing_articles = query.all()
 
         if not existing_articles:
-            # Fallback: Link to Home (/) when no other published articles exist on site
-            if not re.search(r"\[([^\]]+)\]\(/(?:\)|#|$)", content):
-                lines = content.split("\n")
-                new_lines = []
-                placed = False
-                for line in lines:
-                    stripped = line.strip()
-                    if not placed and not stripped.startswith("#") and not stripped.startswith("!") and len(stripped) > 50:
-                        line += " For more product reviews and expert buyer insights, explore our [homepage](/)."
-                        placed = True
-                    new_lines.append(line)
-                if placed:
-                    return "\n".join(new_lines), [{"anchor": "homepage", "target_url": "/", "title": "Home"}]
+            # If no relevant published articles exist, internal linking is optional (do not force links)
             return content, []
 
         inserted_links = []

@@ -126,8 +126,8 @@ class ImageService:
         client = OpenAI(api_key=active_key, timeout=45.0)
         os.makedirs(settings.UPLOADS_DIR, exist_ok=True)
 
-        # Detect available image models from OpenAI (prioritize gpt-image-1-mini for minimum credit cost)
-        candidate_models = ["gpt-image-1-mini", "gpt-image-1", "dall-e-3", "dall-e-2"]
+        # Detect available image models from OpenAI (prioritize dall-e-2 / dall-e-3)
+        candidate_models = ["dall-e-2", "dall-e-3", "gpt-image-1-mini", "gpt-image-1"]
         try:
             m_list = client.models.list()
             avail = {m.id for m in m_list.data}
