@@ -32,7 +32,15 @@ def init_app_state():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_app_state()
-    yield
+    # Start autonomous background scheduler task
+    import asyncio
+    from app.services.auto_scheduler import AutoSchedulerService
+    scheduler_task = asyncio.create_task(AutoSchedulerService.start_background_loop())
+    try:
+        yield
+    finally:
+        AutoSchedulerService.stop_background_loop()
+        scheduler_task.cancel()
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -120,6 +128,19 @@ templates = Jinja2Templates(directory=str(settings.TEMPLATES_DIR))
 @app.get("/health")
 def health():
     return {"status": "ok", "platform": "TrendBlogo", "environment": settings.APP_ENV}
+
+# Route to serve IndexNow verification key file for search engines
+@app.get("/{filename}.txt")
+def get_txt_verification(filename: str):
+    if filename == "robots":
+        from app.services.seo_engine import SEOEngine
+        return Response(content=SEOEngine.generate_robots_txt(), media_type="text/plain")
+    from app.services.indexing_service import IndexingService
+    key = IndexingService.get_indexnow_key()
+    if filename == key or filename == "indexnow":
+        return Response(content=key, media_type="text/plain")
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="File not found")
 
 # Register Routers
 app.include_router(public_router)

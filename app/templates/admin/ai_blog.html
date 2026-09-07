@@ -1,0 +1,1060 @@
+{% extends "admin_base.html" %}
+
+{% block header_title %}AI Auto-Blogging & Auto-Publishing Console{% endblock %}
+
+{% block content %}
+<div class="space-y-8" x-data="{ activeTab: '{{ active_tab or 'dashboard' }}', previewOpen: false, previewArticle: null }">
+
+  <!-- Top Alert / Notification Banner -->
+  {% if request.query_params.get('success') %}
+  <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-center justify-between shadow-sm">
+    <div class="flex items-center space-x-3">
+      <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400 shrink-0"></i>
+      <span class="font-medium text-sm">{{ request.query_params.get('success') }}</span>
+    </div>
+    <a href="/admin/ai-blog?active_tab={{ active_tab }}" class="text-xs text-emerald-400 hover:text-white font-bold">&times;</a>
+  </div>
+  {% endif %}
+
+  {% if request.query_params.get('error') %}
+  <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-center justify-between shadow-sm">
+    <div class="flex items-center space-x-3">
+      <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-400 shrink-0"></i>
+      <span class="font-medium text-sm">{{ request.query_params.get('error') }}</span>
+    </div>
+    <a href="/admin/ai-blog?active_tab={{ active_tab }}" class="text-xs text-rose-400 hover:text-white font-bold">&times;</a>
+  </div>
+  {% endif %}
+
+  <!-- Header & Live Execution Bar -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-950/70 p-6 rounded-2xl border border-slate-800">
+    <div>
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg">
+          <i data-lucide="bot" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-white tracking-tight">AI Autonomous Publishing Engine</h2>
+          <p class="text-xs text-slate-400">OpenAI GPT-4o & DALL-E 3 Multilingual Auto-Blogging System</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3">
+      <form action="/admin/ai-blog/run-scheduler-now" method="POST" class="inline">
+        <button type="submit" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition shadow-md">
+          <i data-lucide="play" class="w-4 h-4 mr-2 text-amber-300"></i> Process Next in Queue
+        </button>
+      </form>
+      <button onclick="switchTab('generator')" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-semibold text-xs transition">
+        <i data-lucide="plus" class="w-4 h-4 mr-2 text-indigo-400"></i> Add Keyword
+      </button>
+    </div>
+  </div>
+
+  <!-- Navigation Tab Bar -->
+  <div class="border-b border-slate-800 flex overflow-x-auto no-scrollbar space-x-1 text-sm font-medium">
+    <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-indigo-500 text-indigo-400">
+      <i data-lucide="layout-dashboard" class="w-4 h-4"></i> <span>Dashboard</span>
+    </button>
+    <button onclick="switchTab('generator')" id="tab-btn-generator" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-transparent text-slate-400 hover:text-slate-200">
+      <i data-lucide="sparkles" class="w-4 h-4 text-purple-400"></i> <span>AI Generator</span>
+    </button>
+    <button onclick="switchTab('keywords')" id="tab-btn-keywords" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-transparent text-slate-400 hover:text-slate-200">
+      <i data-lucide="key" class="w-4 h-4 text-amber-400"></i> <span>Keywords ({{ keywords|length }})</span>
+    </button>
+    <button onclick="switchTab('queue')" id="tab-btn-queue" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-transparent text-slate-400 hover:text-slate-200">
+      <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i> <span>Content Queue</span>
+    </button>
+    <button onclick="switchTab('published')" id="tab-btn-published" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-transparent text-slate-400 hover:text-slate-200">
+      <i data-lucide="book-open" class="w-4 h-4 text-emerald-400"></i> <span>Published ({{ published_articles|length }})</span>
+    </button>
+    <button onclick="switchTab('failed')" id="tab-btn-failed" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-transparent text-slate-400 hover:text-slate-200">
+      <i data-lucide="alert-octagon" class="w-4 h-4 text-rose-400"></i> <span>Failed Jobs ({{ failed_jobs|length }})</span>
+    </button>
+    <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-transparent text-slate-400 hover:text-slate-200">
+      <i data-lucide="history" class="w-4 h-4 text-slate-400"></i> <span>History</span>
+    </button>
+    <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-transparent text-slate-400 hover:text-slate-200">
+      <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i> <span>Settings & Limits</span>
+    </button>
+    <button onclick="switchTab('api')" id="tab-btn-api" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-transparent text-slate-400 hover:text-slate-200">
+      <i data-lucide="cpu" class="w-4 h-4 text-emerald-400"></i> <span>OpenAI API</span>
+    </button>
+    <button onclick="switchTab('indexing')" id="tab-btn-indexing" class="tab-btn px-4 py-3 border-b-2 font-semibold flex items-center space-x-2 transition border-transparent text-slate-400 hover:text-slate-200">
+      <i data-lucide="search" class="w-4 h-4 text-indigo-400"></i> <span>SEO & Indexing</span>
+    </button>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 1: DASHBOARD OVERVIEW -->
+  <!-- ================================================================= -->
+  <div id="pane-dashboard" class="tab-pane space-y-8">
+    <!-- 10 Metric Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>Total Keywords</span>
+          <i data-lucide="key" class="w-4 h-4 text-indigo-400"></i>
+        </div>
+        <div class="text-2xl font-extrabold text-white">{{ metrics.total_keywords }}</div>
+        <div class="text-[11px] text-slate-500 mt-1">{{ metrics.pending_keywords }} pending generation</div>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>Articles Generated</span>
+          <i data-lucide="file-text" class="w-4 h-4 text-purple-400"></i>
+        </div>
+        <div class="text-2xl font-extrabold text-white">{{ metrics.articles_generated }}</div>
+        <div class="text-[11px] text-emerald-400 mt-1">{{ metrics.today_articles }} added today</div>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>Published Live</span>
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div class="text-2xl font-extrabold text-white">{{ metrics.articles_published }}</div>
+        <div class="text-[11px] text-slate-500 mt-1">{{ metrics.month_articles }} this month</div>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>Failed Jobs</span>
+          <i data-lucide="alert-octagon" class="w-4 h-4 text-rose-400"></i>
+        </div>
+        <div class="text-2xl font-extrabold text-rose-400">{{ metrics.articles_failed }}</div>
+        <div class="text-[11px] text-slate-500 mt-1">Requires attention</div>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>Scheduled</span>
+          <i data-lucide="clock" class="w-4 h-4 text-amber-400"></i>
+        </div>
+        <div class="text-2xl font-extrabold text-white">{{ metrics.articles_scheduled }}</div>
+        <div class="text-[11px] text-slate-500 mt-1">Awaiting release</div>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>Images Generated</span>
+          <i data-lucide="image" class="w-4 h-4 text-cyan-400"></i>
+        </div>
+        <div class="text-2xl font-extrabold text-white">{{ metrics.images_generated }}</div>
+        <div class="text-[11px] text-slate-500 mt-1">Editorial DALL-E photos</div>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>Indexing Requests</span>
+          <i data-lucide="send" class="w-4 h-4 text-indigo-400"></i>
+        </div>
+        <div class="text-2xl font-extrabold text-white">{{ metrics.indexing_requests }}</div>
+        <div class="text-[11px] text-slate-500 mt-1">IndexNow & Search Pings</div>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>Daily Quota</span>
+          <i data-lucide="gauge" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div class="text-2xl font-extrabold text-white">{{ metrics.today_articles }} / {{ daily_limit }}</div>
+        <div class="text-[11px] text-slate-500 mt-1">Articles per day</div>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>Auto-Scheduler</span>
+          <i data-lucide="cpu" class="w-4 h-4 text-amber-400"></i>
+        </div>
+        <div class="text-lg font-bold {% if auto_scheduler_enabled %}text-emerald-400{% else %}text-slate-500{% endif %}">
+          {% if auto_scheduler_enabled %}24/7 ACTIVE{% else %}PAUSED{% endif %}
+        </div>
+        <div class="text-[11px] text-slate-500 mt-1">{{ publish_frequency|title }} interval</div>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
+          <span>AI Engine</span>
+          <i data-lucide="sparkles" class="w-4 h-4 text-purple-400"></i>
+        </div>
+        <div class="text-lg font-bold text-indigo-300 truncate">{{ current_model }}</div>
+        <div class="text-[11px] text-slate-500 mt-1">{{ image_model }}</div>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- 7-Day Article Generation Chart -->
+      <div class="lg:col-span-2 bg-slate-950 p-6 rounded-2xl border border-slate-800">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Article Generation Velocity (Last 7 Days)</h3>
+            <p class="text-xs text-slate-400">Automated article publishing count per day</p>
+          </div>
+          <span class="px-2 py-1 text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-lg">7-Day Trend</span>
+        </div>
+        <div class="h-56 flex items-end justify-between space-x-2 pt-8 pb-2 px-4 bg-slate-900/50 rounded-xl border border-slate-800/60">
+          {% for d in chart_data.dates %}
+          {% set count = chart_data.articles[loop.index0] %}
+          <div class="flex-1 flex flex-col items-center group relative">
+            <div class="text-[10px] font-bold text-indigo-300 mb-1 opacity-0 group-hover:opacity-100 transition">{{ count }}</div>
+            <div class="w-full bg-gradient-to-t from-indigo-700 to-purple-500 rounded-t-md transition-all duration-500 hover:brightness-125" style="height: {{ (count * 20) + 12 }}px; max-height: 140px;"></div>
+            <div class="text-[10px] text-slate-400 font-medium mt-2">{{ d }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Publication Distribution -->
+      <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex flex-col justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-2">Publishing Status Ratio</h3>
+          <p class="text-xs text-slate-400 mb-6">Lifecycle distribution of all articles</p>
+          
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between text-xs font-semibold text-slate-300 mb-1">
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2"></span> Published</span>
+                <span>{{ chart_data.published }}</span>
+              </div>
+              <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div class="h-full bg-emerald-500 rounded-full" style="width: {{ [((chart_data.published / (metrics.articles_generated or 1)) * 100), 100]|min }}%;"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-semibold text-slate-300 mb-1">
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 mr-2"></span> Scheduled / Queued</span>
+                <span>{{ chart_data.scheduled + chart_data.pending }}</span>
+              </div>
+              <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div class="h-full bg-amber-500 rounded-full" style="width: {{ [(((chart_data.scheduled + chart_data.pending) / (metrics.total_keywords or 1)) * 100), 100]|min }}%;"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-semibold text-slate-300 mb-1">
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-2"></span> Failed Jobs</span>
+                <span>{{ chart_data.failed }}</span>
+              </div>
+              <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div class="h-full bg-rose-500 rounded-full" style="width: {{ [((chart_data.failed / ((metrics.articles_generated + chart_data.failed) or 1)) * 100), 100]|min }}%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <span>Success Rate:</span>
+          <span class="font-bold text-emerald-400">
+            {% if (chart_data.published + chart_data.failed) > 0 %}
+            {{ ((chart_data.published / (chart_data.published + chart_data.failed)) * 100)|round(1) }}%
+            {% else %}
+            100%
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 2: AI BLOG GENERATOR -->
+  <!-- ================================================================= -->
+  <div id="pane-generator" class="tab-pane hidden space-y-6">
+    <div class="bg-slate-950 p-8 rounded-2xl border border-slate-800">
+      <div class="max-w-3xl">
+        <h3 class="text-lg font-bold text-white mb-2">Direct AI Article Generation</h3>
+        <p class="text-sm text-slate-400 mb-6">Enter a topic or target keyword. The system will craft a native, high-value SEO article directly in your selected language, generate an editorial featured photograph, run quality audits, and publish it live.</p>
+
+        <form action="/admin/ai-blog/keywords/add" method="POST" class="space-y-6">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Focus Keyword / Topic *</label>
+            <input type="text" name="keyword" required placeholder="e.g. Best Gaming Laptops Under $1000" class="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm">
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Language *</label>
+              <select name="language" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                {% for lang, info in supported_languages.items() %}
+                <option value="{{ lang }}" {% if lang == 'English' %}selected{% endif %}>{{ lang }} ({{ info.native }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Target Market / Country</label>
+              <select name="country" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                <option value="United States" selected>United States</option>
+                <option value="United Kingdom">United Kingdom</option>
+                <option value="Canada">Canada</option>
+                <option value="Australia">Australia</option>
+                <option value="India">India</option>
+                <option value="Pakistan">Pakistan</option>
+                <option value="Germany">Germany</option>
+                <option value="France">France</option>
+                <option value="Spain">Spain</option>
+                <option value="Global">Global / International</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Article Type / Intent</label>
+              <select name="article_type" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                <option value="informational" selected>Informational (Comprehensive Guide)</option>
+                <option value="commercial">Commercial (Buyer's Guide & Reviews)</option>
+                <option value="how-to">How-To (Step-by-Step Tutorial)</option>
+                <option value="comparison">Comparison / Versus Analysis</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Target Word Count</label>
+              <select name="target_word_count" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                <option value="1200">1,200 words</option>
+                <option value="1500">1,500 words</option>
+                <option value="2000" selected>2,000 words</option>
+                <option value="2500">2,500 words</option>
+                <option value="3000">3,000 words</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Publishing Status</label>
+              <select name="publish_status" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                <option value="automatic" selected>Automatic (Publish Live)</option>
+                <option value="draft">Save as Draft (Review First)</option>
+                <option value="scheduled">Scheduled</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Schedule Frequency</label>
+              <select name="schedule_frequency" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                <option value="hourly">Every Hour</option>
+                <option value="3_hours">Every 3 Hours</option>
+                <option value="6_hours">Every 6 Hours</option>
+                <option value="daily" selected>Daily</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Queue Priority</label>
+              <select name="priority" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+                <option value="1" selected>High (Priority 1)</option>
+                <option value="2">Medium (Priority 2)</option>
+                <option value="3">Low (Priority 3)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pt-4 flex items-center justify-between border-t border-slate-800">
+            <div class="text-xs text-slate-400">
+              <i data-lucide="shield-check" class="w-4 h-4 inline text-emerald-400 mr-1"></i> Pre-publishing validation & SEO sitemap ping enabled
+            </div>
+            <button type="submit" class="inline-flex items-center px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg transition">
+              <i data-lucide="sparkles" class="w-4 h-4 mr-2"></i> Add to Queue & Generate
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 3: KEYWORDS MANAGER -->
+  <!-- ================================================================= -->
+  <div id="pane-keywords" class="tab-pane hidden space-y-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h3 class="text-lg font-bold text-white">Keyword Queue Management</h3>
+        <p class="text-xs text-slate-400">Manage individual keywords, bulk entries, or import via CSV</p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button onclick="document.getElementById('bulk-import-modal').classList.remove('hidden')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center transition">
+          <i data-lucide="list-plus" class="w-3.5 h-3.5 mr-1.5 text-purple-400"></i> Bulk Paste
+        </button>
+        <button onclick="document.getElementById('csv-import-modal').classList.remove('hidden')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center transition">
+          <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 mr-1.5 text-emerald-400"></i> CSV Upload
+        </button>
+      </div>
+    </div>
+
+    <!-- Keywords Table -->
+    <div class="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900/80 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
+            <tr>
+              <th class="py-3.5 px-4">Priority</th>
+              <th class="py-3.5 px-4">Keyword</th>
+              <th class="py-3.5 px-4">Language</th>
+              <th class="py-3.5 px-4">Target Market</th>
+              <th class="py-3.5 px-4">Articles</th>
+              <th class="py-3.5 px-4">Status</th>
+              <th class="py-3.5 px-4">Schedule</th>
+              <th class="py-3.5 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60 text-slate-300">
+            {% for kw in keywords %}
+            <tr class="hover:bg-slate-900/40 transition">
+              <td class="py-3.5 px-4">
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold {% if kw.priority == 1 %}bg-rose-500/20 text-rose-300{% elif kw.priority == 2 %}bg-amber-500/20 text-amber-300{% else %}bg-slate-800 text-slate-400{% endif %}">
+                  P{{ kw.priority or 1 }}
+                </span>
+              </td>
+              <td class="py-3.5 px-4 font-bold text-white max-w-xs truncate">
+                {{ kw.keyword }}
+              </td>
+              <td class="py-3.5 px-4">
+                <span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[11px]">{{ kw.language or "English" }}</span>
+              </td>
+              <td class="py-3.5 px-4 text-slate-400">{{ kw.country or "United States" }}</td>
+              <td class="py-3.5 px-4 font-semibold">{{ kw.articles_generated or 0 }} / {{ kw.max_articles or 1 }}</td>
+              <td class="py-3.5 px-4">
+                {% if kw.status == 'published' or kw.status == 'completed' %}
+                <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">Completed</span>
+                {% elif kw.status == 'processing' %}
+                <span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-bold animate-pulse">Processing</span>
+                {% elif kw.status == 'failed' %}
+                <span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-bold">Failed</span>
+                {% elif kw.is_paused %}
+                <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold">Paused</span>
+                {% else %}
+                <span class="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[11px] font-bold">Pending</span>
+                {% endif %}
+              </td>
+              <td class="py-3.5 px-4 text-slate-400">{{ kw.schedule_frequency|title or "Daily" }}</td>
+              <td class="py-3.5 px-4 text-right space-x-1.5">
+                <!-- Run Now -->
+                <form action="/admin/ai-blog/keywords/{{ kw.id }}/run-now" method="POST" class="inline">
+                  <button type="submit" title="Generate Now" class="p-1.5 bg-indigo-600/20 text-indigo-400 hover:text-white hover:bg-indigo-600 rounded-lg transition">
+                    <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                  </button>
+                </form>
+
+                <!-- Pause / Resume -->
+                {% if kw.is_paused %}
+                <form action="/admin/ai-blog/keywords/{{ kw.id }}/resume" method="POST" class="inline">
+                  <button type="submit" title="Resume" class="p-1.5 bg-emerald-500/20 text-emerald-400 hover:text-white hover:bg-emerald-600 rounded-lg transition">
+                    <i data-lucide="play-circle" class="w-3.5 h-3.5"></i>
+                  </button>
+                </form>
+                {% else %}
+                <form action="/admin/ai-blog/keywords/{{ kw.id }}/pause" method="POST" class="inline">
+                  <button type="submit" title="Pause" class="p-1.5 bg-amber-500/20 text-amber-400 hover:text-white hover:bg-amber-600 rounded-lg transition">
+                    <i data-lucide="pause-circle" class="w-3.5 h-3.5"></i>
+                  </button>
+                </form>
+                {% endif %}
+
+                <!-- Delete -->
+                <form action="/admin/ai-blog/keywords/{{ kw.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Delete this keyword?');">
+                  <button type="submit" title="Delete" class="p-1.5 bg-rose-500/20 text-rose-400 hover:text-white hover:bg-rose-600 rounded-lg transition">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" class="py-12 text-center text-slate-500">
+                <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-600"></i>
+                No keywords in queue. Click "Add Keyword" or import above.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 4: CONTENT QUEUE -->
+  <!-- ================================================================= -->
+  <div id="pane-queue" class="tab-pane hidden space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h3 class="text-lg font-bold text-white">Live Generation Queue</h3>
+        <p class="text-xs text-slate-400">Real-time pipeline tasks and step progress</p>
+      </div>
+      <form action="/admin/ai-blog/run-scheduler-now" method="POST">
+        <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center transition">
+          <i data-lucide="rotate-cw" class="w-3.5 h-3.5 mr-1.5"></i> Trigger Worker Now
+        </button>
+      </form>
+    </div>
+
+    <div class="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900/80 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
+            <tr>
+              <th class="py-3.5 px-4">Job ID</th>
+              <th class="py-3.5 px-4">Keyword</th>
+              <th class="py-3.5 px-4">Language</th>
+              <th class="py-3.5 px-4">Current Pipeline Step</th>
+              <th class="py-3.5 px-4">Progress</th>
+              <th class="py-3.5 px-4">Status</th>
+              <th class="py-3.5 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60 text-slate-300">
+            {% for job in queue_jobs %}
+            <tr class="hover:bg-slate-900/40 transition">
+              <td class="py-3.5 px-4 font-mono text-slate-400">#{{ job.id }}</td>
+              <td class="py-3.5 px-4 font-bold text-white">{{ job.keyword }}</td>
+              <td class="py-3.5 px-4 text-slate-400">{{ job.language or "English" }}</td>
+              <td class="py-3.5 px-4 max-w-xs truncate text-slate-300">{{ job.current_step }}</td>
+              <td class="py-3.5 px-4 w-36">
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" style="width: {{ job.progress or 0 }}%;"></div>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">{{ job.progress or 0 }}%</span>
+              </td>
+              <td class="py-3.5 px-4">
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase
+                  {% if job.status == 'published' or job.status == 'completed' %}bg-emerald-500/20 text-emerald-300
+                  {% elif job.status == 'failed' %}bg-rose-500/20 text-rose-300
+                  {% elif job.status in ['generating', 'image_generating', 'validating'] %}bg-purple-500/20 text-purple-300 animate-pulse
+                  {% else %}bg-slate-800 text-slate-300{% endif %}">
+                  {{ job.status }}
+                </span>
+              </td>
+              <td class="py-3.5 px-4 text-right space-x-2">
+                {% if job.status == 'failed' %}
+                <form action="/admin/ai-blog/jobs/{{ job.id }}/retry" method="POST" class="inline">
+                  <button type="submit" class="px-2.5 py-1 rounded bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600 hover:text-white text-[11px] font-bold transition">
+                    Retry
+                  </button>
+                </form>
+                {% endif %}
+                <form action="/admin/ai-blog/jobs/{{ job.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Delete this job entry?');">
+                  <button type="submit" class="p-1 text-slate-500 hover:text-rose-400 transition">
+                    <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="py-8 text-center text-slate-500">Queue is currently empty.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 5: PUBLISHED ARTICLES -->
+  <!-- ================================================================= -->
+  <div id="pane-published" class="tab-pane hidden space-y-6">
+    <div>
+      <h3 class="text-lg font-bold text-white">AI-Published Content</h3>
+      <p class="text-xs text-slate-400">Articles generated, validated, and live on TrendBlogo</p>
+    </div>
+
+    <div class="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900/80 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
+            <tr>
+              <th class="py-3.5 px-4">Article</th>
+              <th class="py-3.5 px-4">Language</th>
+              <th class="py-3.5 px-4">Words</th>
+              <th class="py-3.5 px-4">SEO Score</th>
+              <th class="py-3.5 px-4">Indexing</th>
+              <th class="py-3.5 px-4">Status</th>
+              <th class="py-3.5 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60 text-slate-300">
+            {% for art in published_articles %}
+            <tr class="hover:bg-slate-900/40 transition">
+              <td class="py-3.5 px-4">
+                <div class="flex items-center space-x-3">
+                  <img src="{{ art.featured_image }}" alt="" class="w-12 h-8 rounded object-cover border border-slate-800 shrink-0">
+                  <div class="truncate max-w-sm">
+                    <a href="/blog/{{ art.slug }}" target="_blank" class="font-bold text-white hover:text-indigo-400 transition truncate block">
+                      {{ art.title }}
+                    </a>
+                    <span class="text-[11px] text-slate-500">/blog/{{ art.slug }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-3.5 px-4">
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px]">{{ art.language or "English" }}</span>
+              </td>
+              <td class="py-3.5 px-4 font-mono">{{ art.word_count }}</td>
+              <td class="py-3.5 px-4">
+                <span class="px-2 py-0.5 rounded font-bold text-[11px] bg-emerald-500/20 text-emerald-400">
+                  {{ art.quality_score|round(0) }} / 100
+                </span>
+              </td>
+              <td class="py-3.5 px-4">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                  {% if art.indexing_status == 'submitted' %}bg-indigo-500/20 text-indigo-300
+                  {% elif art.indexing_status == 'indexed' %}bg-emerald-500/20 text-emerald-300
+                  {% else %}bg-slate-800 text-slate-400{% endif %}">
+                  {{ art.indexing_status or "Pending" }}
+                </span>
+              </td>
+              <td class="py-3.5 px-4">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase {% if art.status == 'published' %}bg-emerald-500/20 text-emerald-300{% else %}bg-amber-500/20 text-amber-300{% endif %}">
+                  {{ art.status }}
+                </span>
+              </td>
+              <td class="py-3.5 px-4 text-right space-x-2">
+                <a href="/blog/{{ art.slug }}" target="_blank" class="p-1.5 text-slate-400 hover:text-white transition inline-block" title="View Public Post">
+                  <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                </a>
+                <a href="/admin/articles/{{ art.id }}/edit" class="p-1.5 text-slate-400 hover:text-indigo-400 transition inline-block" title="Edit in Content Editor">
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                </a>
+                <form action="/admin/ai-blog/articles/{{ art.id }}/index-now" method="POST" class="inline">
+                  <button type="submit" title="Instant IndexNow Submission" class="p-1.5 text-slate-400 hover:text-emerald-400 transition">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                  </button>
+                </form>
+                <form action="/admin/ai-blog/articles/{{ art.id }}/regenerate-image" method="POST" class="inline" onsubmit="return confirm('Regenerate featured image with OpenAI DALL-E?');">
+                  <button type="submit" title="Regenerate Image" class="p-1.5 text-slate-400 hover:text-cyan-400 transition">
+                    <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                  </button>
+                </form>
+                {% if art.status == 'published' %}
+                <form action="/admin/ai-blog/articles/{{ art.id }}/unpublish" method="POST" class="inline">
+                  <button type="submit" title="Unpublish to Draft" class="p-1.5 text-slate-400 hover:text-amber-400 transition">
+                    <i data-lucide="eye-off" class="w-3.5 h-3.5"></i>
+                  </button>
+                </form>
+                {% else %}
+                <form action="/admin/ai-blog/articles/{{ art.id }}/publish" method="POST" class="inline">
+                  <button type="submit" title="Publish Live" class="p-1.5 text-slate-400 hover:text-emerald-400 transition">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="py-12 text-center text-slate-500">No AI-published articles yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 6: FAILED JOBS -->
+  <!-- ================================================================= -->
+  <div id="pane-failed" class="tab-pane hidden space-y-6">
+    <div>
+      <h3 class="text-lg font-bold text-white">Failed Jobs & Validation Errors</h3>
+      <p class="text-xs text-slate-400">Review jobs that failed quality checks or API calls with 1-click retry</p>
+    </div>
+
+    <div class="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900/80 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
+            <tr>
+              <th class="py-3.5 px-4">Job ID</th>
+              <th class="py-3.5 px-4">Keyword</th>
+              <th class="py-3.5 px-4">Language</th>
+              <th class="py-3.5 px-4">Failure Reason / Validation Error</th>
+              <th class="py-3.5 px-4">Attempts</th>
+              <th class="py-3.5 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60 text-slate-300">
+            {% for job in failed_jobs %}
+            <tr class="hover:bg-slate-900/40 transition">
+              <td class="py-3.5 px-4 font-mono text-rose-400">#{{ job.id }}</td>
+              <td class="py-3.5 px-4 font-bold text-white">{{ job.keyword }}</td>
+              <td class="py-3.5 px-4 text-slate-400">{{ job.language or "English" }}</td>
+              <td class="py-3.5 px-4 max-w-md">
+                <span class="text-rose-300 font-mono text-[11px] block bg-rose-500/10 p-2 rounded border border-rose-500/20">
+                  {{ job.validation_errors or job.error_message or "Unknown failure" }}
+                </span>
+              </td>
+              <td class="py-3.5 px-4 text-center font-mono">{{ job.attempts or 1 }}</td>
+              <td class="py-3.5 px-4 text-right space-x-2">
+                <form action="/admin/ai-blog/jobs/{{ job.id }}/retry" method="POST" class="inline">
+                  <button type="submit" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition shadow">
+                    Retry Job
+                  </button>
+                </form>
+                <form action="/admin/ai-blog/jobs/{{ job.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Delete this failed job?');">
+                  <button type="submit" class="p-1.5 text-slate-500 hover:text-rose-400 transition">
+                    <i data-lucide="trash" class="w-4 h-4"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="py-12 text-center text-slate-500">
+                <i data-lucide="check-circle" class="w-8 h-8 mx-auto mb-2 text-emerald-400"></i>
+                Zero failed jobs! All pipeline executions are running cleanly.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 7: GENERATION HISTORY -->
+  <!-- ================================================================= -->
+  <div id="pane-history" class="tab-pane hidden space-y-6">
+    <div>
+      <h3 class="text-lg font-bold text-white">Generation Activity History</h3>
+      <p class="text-xs text-slate-400">Complete chronological audit trail of all AI actions</p>
+    </div>
+
+    <div class="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900/80 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
+            <tr>
+              <th class="py-3.5 px-4">Date & Time</th>
+              <th class="py-3.5 px-4">Keyword</th>
+              <th class="py-3.5 px-4">Language</th>
+              <th class="py-3.5 px-4">Status</th>
+              <th class="py-3.5 px-4">Logs / Details</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60 text-slate-300">
+            {% for job in history_jobs %}
+            <tr class="hover:bg-slate-900/40 transition">
+              <td class="py-3.5 px-4 font-mono text-slate-400 text-[11px] whitespace-nowrap">{{ job.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+              <td class="py-3.5 px-4 font-bold text-white">{{ job.keyword }}</td>
+              <td class="py-3.5 px-4 text-slate-400">{{ job.language or "English" }}</td>
+              <td class="py-3.5 px-4">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                  {% if job.status in ['published', 'completed'] %}bg-emerald-500/20 text-emerald-300
+                  {% elif job.status == 'failed' %}bg-rose-500/20 text-rose-300
+                  {% else %}bg-purple-500/20 text-purple-300{% endif %}">
+                  {{ job.status }}
+                </span>
+              </td>
+              <td class="py-3.5 px-4 text-slate-400 max-w-lg truncate font-mono text-[11px]">{{ job.logs }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="py-8 text-center text-slate-500">No activity history recorded yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 8: SETTINGS & LIMITS -->
+  <!-- ================================================================= -->
+  <div id="pane-settings" class="tab-pane hidden space-y-6">
+    <div class="bg-slate-950 p-8 rounded-2xl border border-slate-800 max-w-3xl">
+      <h3 class="text-lg font-bold text-white mb-2">Automated Publishing & Cost Controls</h3>
+      <p class="text-xs text-slate-400 mb-6">Calibrate publishing frequency, daily rate limits, and language defaults</p>
+
+      <form action="/admin/ai-blog/settings" method="POST" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Daily Article Limit</label>
+            <input type="number" name="daily_article_limit" min="1" max="100" value="{{ daily_limit }}" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+            <p class="text-[11px] text-slate-500 mt-1">Maximum articles published per calendar day (Cost control)</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Publishing Frequency</label>
+            <select name="publish_frequency" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+              <option value="hourly" {% if publish_frequency == 'hourly' %}selected{% endif %}>Every Hour</option>
+              <option value="3_hours" {% if publish_frequency == '3_hours' %}selected{% endif %}>Every 3 Hours</option>
+              <option value="6_hours" {% if publish_frequency == '6_hours' %}selected{% endif %}>Every 6 Hours</option>
+              <option value="daily" {% if publish_frequency == 'daily' %}selected{% endif %}>Daily (Every 24 Hours)</option>
+            </select>
+            <p class="text-[11px] text-slate-500 mt-1">Interval between automated queue executions</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Default Target Word Count</label>
+            <input type="number" name="default_word_count" min="800" max="5000" step="100" value="{{ settings_map.get('default_word_count', '2000') }}" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Timezone</label>
+            <input type="text" name="timezone" value="{{ timezone_setting }}" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-800 space-y-3">
+          <label class="flex items-center space-x-3 cursor-pointer">
+            <input type="checkbox" name="auto_publish_enabled" value="true" {% if auto_publish_enabled %}checked{% endif %} class="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-800 focus:ring-0">
+            <span class="text-sm font-semibold text-white">Enable Automatic Live Publishing</span>
+          </label>
+          <p class="text-xs text-slate-400 pl-7">When enabled, valid articles go live immediately without manual approval.</p>
+
+          <label class="flex items-center space-x-3 cursor-pointer pt-2">
+            <input type="checkbox" name="auto_scheduler_enabled" value="true" {% if auto_scheduler_enabled %}checked{% endif %} class="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-800 focus:ring-0">
+            <span class="text-sm font-semibold text-white">Enable 24/7 Autonomous Background Scheduler</span>
+          </label>
+          <p class="text-xs text-slate-400 pl-7">Keeps running continuously on the server even when the admin browser tab is closed.</p>
+        </div>
+
+        <div class="pt-4 flex justify-end">
+          <button type="submit" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition shadow-md">
+            Save Settings & Limits
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 9: OPENAI API CONFIGURATION -->
+  <!-- ================================================================= -->
+  <div id="pane-api" class="tab-pane hidden space-y-6">
+    <div class="bg-slate-950 p-8 rounded-2xl border border-slate-800 max-w-3xl">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">Server-Side OpenAI API Credentials</h3>
+          <p class="text-xs text-slate-400">API keys are stored securely server-side and never exposed to client browsers.</p>
+        </div>
+      </div>
+
+      <form action="/admin/ai-blog/settings" method="POST" class="space-y-6">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">OpenAI API Key (Server Environment)</label>
+          <div class="relative">
+            <input type="password" name="openai_api_key" placeholder="Enter new sk-proj-... to update" class="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500 font-mono">
+          </div>
+          <div class="flex items-center justify-between text-xs mt-2">
+            <span class="text-slate-400">Current Key: <code class="text-indigo-400 font-mono">{{ masked_api_key }}</code></span>
+            <span class="text-emerald-400 flex items-center"><i data-lucide="lock" class="w-3 h-3 mr-1"></i> Encrypted at Rest</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Article Text Model</label>
+            <select name="openai_model" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+              <option value="gpt-4o-mini" {% if current_model == 'gpt-4o-mini' %}selected{% endif %}>gpt-4o-mini (Fast & Cost-Efficient - Recommended)</option>
+              <option value="gpt-4o" {% if current_model == 'gpt-4o' %}selected{% endif %}>gpt-4o (Flagship Model)</option>
+              <option value="gpt-4-turbo" {% if current_model == 'gpt-4-turbo' %}selected{% endif %}>gpt-4-turbo</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Featured Image Model</label>
+            <select name="image_model" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500">
+              <option value="dall-e-3" {% if image_model == 'dall-e-3' %}selected{% endif %}>DALL-E 3 (1024x1024 Photorealistic - Recommended)</option>
+              <option value="dall-e-2" {% if image_model == 'dall-e-2' %}selected{% endif %}>DALL-E 2 (Fast Alternative)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pt-4 flex justify-end">
+          <button type="submit" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-md">
+            Update API Configuration
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- TAB 10: SEO & INDEXING -->
+  <!-- ================================================================= -->
+  <div id="pane-indexing" class="tab-pane hidden space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-2">IndexNow Protocol</h3>
+        <p class="text-xs text-slate-400 mb-4">Instant search-engine indexing notifications supported by Microsoft Bing, Yandex, Seznam, and Naver.</p>
+        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1">
+          <div class="text-slate-400">Endpoint: <span class="text-white">https://api.indexnow.org/indexnow</span></div>
+          <div class="text-slate-400">Verification: <a href="/indexnow.txt" target="_blank" class="text-indigo-400 underline">/indexnow.txt</a></div>
+        </div>
+      </div>
+
+      <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-2">Dynamic XML Sitemap</h3>
+        <p class="text-xs text-slate-400 mb-4">Automatically updated whenever an article is published or modified.</p>
+        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 text-xs font-mono space-y-1">
+          <div class="text-slate-400">Public URL: <a href="/sitemap.xml" target="_blank" class="text-emerald-400 underline">/sitemap.xml</a></div>
+          <div class="text-slate-400">Robots.txt: <a href="/robots.txt" target="_blank" class="text-cyan-400 underline">/robots.txt</a></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Indexing Submissions Log -->
+    <div>
+      <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-3">Indexing Submissions Audit Log</h3>
+      <div class="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/80 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
+              <tr>
+                <th class="py-3.5 px-4">Date & Time</th>
+                <th class="py-3.5 px-4">Target URL</th>
+                <th class="py-3.5 px-4">Engine / Protocol</th>
+                <th class="py-3.5 px-4">Status</th>
+                <th class="py-3.5 px-4">HTTP Response</th>
+                <th class="py-3.5 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-slate-300">
+              {% for log in indexing_logs %}
+              <tr class="hover:bg-slate-900/40 transition">
+                <td class="py-3.5 px-4 font-mono text-slate-400 text-[11px] whitespace-nowrap">{{ log.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                <td class="py-3.5 px-4 font-bold text-white truncate max-w-xs">{{ log.url }}</td>
+                <td class="py-3.5 px-4 uppercase font-bold text-[11px] text-indigo-400">{{ log.service }}</td>
+                <td class="py-3.5 px-4">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase {% if log.status == 'success' %}bg-emerald-500/20 text-emerald-300{% else %}bg-rose-500/20 text-rose-300{% endif %}">
+                    {{ log.status }}
+                  </span>
+                </td>
+                <td class="py-3.5 px-4 font-mono text-[11px] text-slate-400 max-w-xs truncate">
+                  HTTP {{ log.response_code or "N/A" }} - {{ log.response_body or log.error_message or "OK" }}
+                </td>
+                <td class="py-3.5 px-4 text-right">
+                  <form action="/admin/ai-blog/indexing/{{ log.id }}/retry" method="POST" class="inline">
+                    <button type="submit" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition">
+                      Retry
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="6" class="py-8 text-center text-slate-500">No indexing submissions recorded yet. Newly published articles will trigger entries here automatically.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL: BULK KEYWORD IMPORT -->
+  <!-- ================================================================= -->
+  <div id="bulk-import-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h4 class="text-base font-bold text-white">Bulk Keyword Ingestion</h4>
+        <button onclick="document.getElementById('bulk-import-modal').classList.add('hidden')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form action="/admin/ai-blog/keywords/bulk-add" method="POST" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Keywords (One per line)</label>
+          <textarea name="keywords_text" rows="6" required placeholder="best budget 4k monitors&#10;mechanical keyboards for coding&#10;best noise cancelling headphones" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-indigo-500"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Language</label>
+            <select name="language" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs">
+              {% for lang in supported_languages.keys() %}
+              <option value="{{ lang }}">{{ lang }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Market</label>
+            <select name="country" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs">
+              <option value="United States">United States</option>
+              <option value="United Kingdom">United Kingdom</option>
+              <option value="India">India</option>
+              <option value="Global">Global</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="document.getElementById('bulk-import-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold">Add All Keywords</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL: CSV IMPORT -->
+  <!-- ================================================================= -->
+  <div id="csv-import-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h4 class="text-base font-bold text-white">Import Keywords from CSV</h4>
+        <button onclick="document.getElementById('csv-import-modal').classList.add('hidden')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form action="/admin/ai-blog/keywords/import-csv" method="POST" enctype="multipart/form-data" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Select CSV File</label>
+          <input type="file" name="csv_file" accept=".csv" required class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700">
+          <p class="text-[11px] text-slate-500 mt-2">CSV format: Column 1 = Keyword, Column 2 = Language (optional).</p>
+        </div>
+        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="document.getElementById('csv-import-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">Upload & Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function switchTab(tabId) {
+    // Hide all panes
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => {
+      el.classList.remove('border-indigo-500', 'text-indigo-400');
+      el.classList.add('border-transparent', 'text-slate-400');
+    });
+
+    // Show target pane
+    const target = document.getElementById('pane-' + tabId);
+    if (target) {
+      target.classList.remove('hidden');
+    }
+
+    // Highlight target button
+    const btn = document.getElementById('tab-btn-' + tabId);
+    if (btn) {
+      btn.classList.remove('border-transparent', 'text-slate-400');
+      btn.classList.add('border-indigo-500', 'text-indigo-400');
+    }
+
+    // Update query param in URL without reload
+    const url = new URL(window.location);
+    url.searchParams.set('active_tab', tabId);
+    window.history.replaceState({}, '', url);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('active_tab') || 'dashboard';
+    switchTab(tab);
+  });
+</script>
+{% endblock %}

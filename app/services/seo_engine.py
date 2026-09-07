@@ -187,7 +187,8 @@ class SEOEngine:
         for art in articles:
             url_elem = ET.SubElement(root, "url")
             ET.SubElement(url_elem, "loc").text = f"{base}/blog/{art.slug}"
-            ET.SubElement(url_elem, "lastmod").text = art.updated_at.strftime("%Y-%m-%d")
+            lastmod_dt = art.updated_at or art.published_at or datetime.utcnow()
+            ET.SubElement(url_elem, "lastmod").text = lastmod_dt.strftime("%Y-%m-%d")
             ET.SubElement(url_elem, "changefreq").text = "weekly"
             ET.SubElement(url_elem, "priority").text = "0.9"
 

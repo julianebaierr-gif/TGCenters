@@ -75,15 +75,25 @@ class ContentValidator:
             errors.append(f"Word count ({word_count}) is below minimum threshold of {effective_min} words.")
 
         # 7. Empty Sections / Truncated Content
-        sections = re.split(r"\n#{1,4}\s+", content_markdown or "")
-        for idx, sec in enumerate(sections):
-            clean_sec = sec.strip()
-            # If section starts with a heading name, check content after first newline
-            lines = clean_sec.split("\n", 1)
-            body_text = lines[1].strip() if len(lines) > 1 else ""
-            if idx > 0 and len(body_text) < 15:
-                heading_name = lines[0].strip() if lines else f"Section {idx}"
-                errors.append(f"Empty or truncated section detected under heading: '{heading_name}'.")
+        heading_blocks = re.split(r"\n(?=#{1,4}\s+)", content_markdown or "")
+        for idx, block in enumerate(heading_blocks):
+            clean_block = block.strip()
+            if not clean_block or not clean_block.startswith("#"):
+                continue
+            lines = [l.strip() for l in clean_block.split("\n") if l.strip()]
+            heading_line = lines[0]
+            heading_name = heading_line.lstrip("#").strip()
+            body_lines = [l for l in lines[1:] if not l.startswith("#")]
+            
+            # Check if this heading has no body text
+            if not body_lines:
+                # If followed immediately by a deeper heading (e.g. ## FAQ followed by ### Question), it is valid structure
+                next_block = heading_blocks[idx + 1].strip() if idx + 1 < len(heading_blocks) else ""
+                cur_level = len(heading_line) - len(heading_line.lstrip("#"))
+                next_level = len(next_block) - len(next_block.lstrip("#")) if next_block.startswith("#") else 0
+                if next_level > cur_level:
+                    continue  # Valid container heading (e.g. ## FAQ containing ### questions)
+                errors.append(f"Empty section detected under heading: '{heading_name}'.")
 
         # 8. Focus Keyword Presence
         kw_clean = keyword.lower().strip()

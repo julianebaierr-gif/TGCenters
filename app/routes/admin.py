@@ -14,11 +14,15 @@ from app.models.media import Media
 from app.models.links import InternalLink, ExternalLink
 from app.models.automation import Keyword, GenerationJob, AIUsage
 from app.models.inquiries import ContactMessage, GuestPostSubmission
-from app.models.settings import SiteSetting, SystemLog, HomepageSection
+from app.models.settings import SiteSetting, SystemLog, HomepageSection, IndexingLog
 from app.services.queue_runner import QueueRunner
 from app.services.quality_control import QualityControl
 from app.services.image_service import ImageService
 from app.services.seo_engine import SEOEngine
+from app.services.ai_content_service import AIContentService, SUPPORTED_LANGUAGES
+from app.services.ai_image_service import AIImageService
+from app.services.auto_scheduler import AutoSchedulerService
+from app.services.indexing_service import IndexingService
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory=str(settings.TEMPLATES_DIR))
@@ -766,4 +770,422 @@ async def sections_save(
 
     db.commit()
     return RedirectResponse(url="/admin/sections?saved=1", status_code=303)
+
+
+# =========================================================================
+# AI AUTO-BLOGGING & AUTO-PUBLISHING CONSOLE (/admin/ai-blog)
+# =========================================================================
+
+@router.get("/ai-blog", response_class=HTMLResponse)
+def ai_blog_dashboard(
+    request: Request,
+    active_tab: Optional[str] = Query("dashboard"),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    ctx = admin_context(request, admin, db, "ai_blog")
+    now = datetime.utcnow()
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # 1. Dashboard Metrics Cards
+    total_keywords = db.query(Keyword).count()
+    pending_keywords = db.query(Keyword).filter(Keyword.status.in_(["pending", "processing"])).count()
+    articles_generated = db.query(Article).filter(Article.ai_generated == True).count()
+    articles_published = db.query(Article).filter(Article.ai_generated == True, Article.status == "published").count()
+    articles_failed = db.query(GenerationJob).filter(GenerationJob.status == "failed").count()
+    articles_scheduled = db.query(Article).filter(Article.status == "scheduled").count()
+    images_generated = db.query(Media).count()
+    indexing_requests = db.query(IndexingLog).count()
+    today_articles = db.query(Article).filter(Article.ai_generated == True, Article.created_at >= start_of_today).count()
+    month_articles = db.query(Article).filter(Article.ai_generated == True, Article.created_at >= start_of_month).count()
+
+    # 2. Activity Chart Data (Last 7 days)
+    chart_dates = []
+    chart_articles = []
+    for i in range(6, -1, -1):
+        day_date = now.date() - timedelta(days=i)
+        day_start = datetime.combine(day_date, datetime.min.time())
+        day_end = datetime.combine(day_date, datetime.max.time())
+        cnt = db.query(Article).filter(
+            Article.ai_generated == True,
+            Article.created_at >= day_start,
+            Article.created_at <= day_end
+        ).count()
+        chart_dates.append(day_date.strftime("%b %d"))
+        chart_articles.append(cnt)
+
+    # Weekly Trends (Last 4 weeks)
+    week_labels = []
+    week_counts = []
+    for w in range(3, -1, -1):
+        w_start = now - timedelta(days=(w + 1) * 7)
+        w_end = now - timedelta(days=w * 7)
+        cnt = db.query(Article).filter(
+            Article.ai_generated == True,
+            Article.created_at >= w_start,
+            Article.created_at < w_end
+        ).count()
+        week_labels.append(f"W-{w+1}" if w > 0 else "This Wk")
+        week_counts.append(cnt)
+
+    # 3. Data Tables
+    keywords = db.query(Keyword).order_by(Keyword.priority.asc(), desc(Keyword.id)).all()
+    queue_jobs = db.query(GenerationJob).order_by(desc(GenerationJob.created_at)).limit(50).all()
+    published_articles = db.query(Article).filter(Article.ai_generated == True).order_by(desc(Article.created_at)).limit(50).all()
+    failed_jobs = db.query(GenerationJob).filter(GenerationJob.status == "failed").order_by(desc(GenerationJob.created_at)).limit(50).all()
+    history_jobs = db.query(GenerationJob).order_by(desc(GenerationJob.created_at)).limit(100).all()
+    indexing_logs = db.query(IndexingLog).order_by(desc(IndexingLog.created_at)).limit(50).all()
+
+    # 4. Settings Configuration (Secure API key masking)
+    all_settings = db.query(SiteSetting).all()
+    settings_map = {s.key: s.value for s in all_settings}
+    
+    raw_api_key = AIContentService.get_api_key(db)
+    if raw_api_key and len(raw_api_key) > 8:
+        masked_api_key = f"{raw_api_key[:7]}...{raw_api_key[-4:]}"
+    else:
+        masked_api_key = "Not configured"
+
+    ctx.update({
+        "title": "AI Auto-Blogging & Publishing Console — TrendBlogo",
+        "active_tab": active_tab,
+        "metrics": {
+            "total_keywords": total_keywords,
+            "pending_keywords": pending_keywords,
+            "articles_generated": articles_generated,
+            "articles_published": articles_published,
+            "articles_failed": articles_failed,
+            "articles_scheduled": articles_scheduled,
+            "images_generated": images_generated,
+            "indexing_requests": indexing_requests,
+            "today_articles": today_articles,
+            "month_articles": month_articles
+        },
+        "chart_data": {
+            "dates": chart_dates,
+            "articles": chart_articles,
+            "week_labels": week_labels,
+            "week_counts": week_counts,
+            "published": articles_published,
+            "failed": articles_failed,
+            "scheduled": articles_scheduled,
+            "pending": pending_keywords
+        },
+        "keywords": keywords,
+        "queue_jobs": queue_jobs,
+        "published_articles": published_articles,
+        "failed_jobs": failed_jobs,
+        "history_jobs": history_jobs,
+        "indexing_logs": indexing_logs,
+        "settings_map": settings_map,
+        "masked_api_key": masked_api_key,
+        "supported_languages": SUPPORTED_LANGUAGES,
+        "current_model": AIContentService.get_model(db),
+        "image_model": AIImageService.get_image_model(db),
+        "daily_limit": AutoSchedulerService.get_setting_int(db, "daily_article_limit", 5),
+        "publish_frequency": AutoSchedulerService.get_setting_str(db, "publish_frequency", "daily"),
+        "timezone_setting": AutoSchedulerService.get_setting_str(db, "timezone", "UTC"),
+        "auto_publish_enabled": AutoSchedulerService.get_setting_str(db, "auto_publish_enabled", "true") == "true",
+        "auto_scheduler_enabled": AutoSchedulerService.get_setting_str(db, "auto_scheduler_enabled", "true") == "true"
+    })
+    return templates.TemplateResponse(request=request, name="admin/ai_blog.html", context=ctx)
+
+
+@router.post("/ai-blog/keywords/add")
+def ai_blog_add_keyword(
+    keyword: str = Form(...),
+    language: str = Form("English"),
+    country: str = Form("United States"),
+    article_type: str = Form("informational"),
+    target_word_count: int = Form(2000),
+    publish_status: str = Form("automatic"),
+    schedule_frequency: str = Form("daily"),
+    max_articles: int = Form(1),
+    priority: int = Form(1),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    kw_clean = keyword.strip()
+    if not kw_clean:
+        return RedirectResponse(url="/admin/ai-blog?active_tab=keywords&error=Keyword+cannot+be+empty", status_code=303)
+
+    existing = db.query(Keyword).filter(Keyword.keyword.ilike(kw_clean)).first()
+    if existing:
+        return RedirectResponse(url="/admin/ai-blog?active_tab=keywords&error=Keyword+already+exists", status_code=303)
+
+    kw_item = Keyword(
+        keyword=kw_clean,
+        language=language,
+        country=country,
+        article_type=article_type,
+        search_intent=article_type,
+        target_word_count=target_word_count,
+        publish_status=publish_status,
+        schedule_frequency=schedule_frequency,
+        max_articles=max_articles,
+        priority=priority,
+        status="pending",
+        is_paused=0
+    )
+    db.add(kw_item)
+    db.commit()
+    return RedirectResponse(url="/admin/ai-blog?active_tab=keywords&success=Keyword+added+successfully", status_code=303)
+
+
+@router.post("/ai-blog/keywords/bulk-add")
+def ai_blog_bulk_add_keywords(
+    keywords_text: str = Form(...),
+    language: str = Form("English"),
+    country: str = Form("United States"),
+    article_type: str = Form("informational"),
+    target_word_count: int = Form(2000),
+    publish_status: str = Form("automatic"),
+    schedule_frequency: str = Form("daily"),
+    priority: int = Form(1),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    lines = [line.strip() for line in keywords_text.splitlines() if line.strip()]
+    added_count = 0
+    for kw_str in lines:
+        if not db.query(Keyword).filter(Keyword.keyword.ilike(kw_str)).first():
+            kw_item = Keyword(
+                keyword=kw_str,
+                language=language,
+                country=country,
+                article_type=article_type,
+                search_intent=article_type,
+                target_word_count=target_word_count,
+                publish_status=publish_status,
+                schedule_frequency=schedule_frequency,
+                priority=priority,
+                status="pending",
+                is_paused=0
+            )
+            db.add(kw_item)
+            added_count += 1
+    db.commit()
+    return RedirectResponse(url=f"/admin/ai-blog?active_tab=keywords&success={added_count}+keywords+added", status_code=303)
+
+
+@router.post("/ai-blog/keywords/import-csv")
+async def ai_blog_import_csv(
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    import csv
+    import io
+    form = await request.form()
+    csv_file = form.get("csv_file")
+    if not csv_file or not hasattr(csv_file, "read"):
+        return RedirectResponse(url="/admin/ai-blog?active_tab=keywords&error=No+CSV+file+provided", status_code=303)
+
+    contents = await csv_file.read()
+    decoded = contents.decode("utf-8", errors="replace")
+    reader = csv.reader(io.StringIO(decoded))
+    
+    added_count = 0
+    header = True
+    for row in reader:
+        if not row:
+            continue
+        if header:
+            header = False
+            # If first column is 'keyword', skip header
+            if row[0].lower().strip() in ("keyword", "topic", "keywords"):
+                continue
+        kw = row[0].strip()
+        lang = row[1].strip() if len(row) > 1 and row[1].strip() else "English"
+        if kw and not db.query(Keyword).filter(Keyword.keyword.ilike(kw)).first():
+            db.add(Keyword(
+                keyword=kw,
+                language=lang,
+                country="United States",
+                article_type="informational",
+                status="pending"
+            ))
+            added_count += 1
+
+    db.commit()
+    return RedirectResponse(url=f"/admin/ai-blog?active_tab=keywords&success={added_count}+keywords+imported+from+CSV", status_code=303)
+
+
+@router.post("/ai-blog/keywords/{keyword_id}/pause")
+def ai_blog_pause_keyword(keyword_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    kw = db.query(Keyword).filter(Keyword.id == keyword_id).first()
+    if kw:
+        kw.is_paused = 1
+        kw.status = "paused"
+        db.commit()
+    return RedirectResponse(url="/admin/ai-blog?active_tab=keywords", status_code=303)
+
+
+@router.post("/ai-blog/keywords/{keyword_id}/resume")
+def ai_blog_resume_keyword(keyword_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    kw = db.query(Keyword).filter(Keyword.id == keyword_id).first()
+    if kw:
+        kw.is_paused = 0
+        kw.status = "pending"
+        db.commit()
+    return RedirectResponse(url="/admin/ai-blog?active_tab=keywords", status_code=303)
+
+
+@router.post("/ai-blog/keywords/{keyword_id}/delete")
+def ai_blog_delete_keyword(keyword_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    kw = db.query(Keyword).filter(Keyword.id == keyword_id).first()
+    if kw:
+        db.delete(kw)
+        db.commit()
+    return RedirectResponse(url="/admin/ai-blog?active_tab=keywords", status_code=303)
+
+
+@router.post("/ai-blog/keywords/{keyword_id}/run-now")
+def ai_blog_run_keyword_now(keyword_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    kw = db.query(Keyword).filter(Keyword.id == keyword_id).first()
+    if kw:
+        kw.is_paused = 0
+        kw.status = "pending"
+        kw.priority = 0  # Highest priority
+        kw.next_scheduled_at = datetime.utcnow()
+        db.commit()
+        # Execute synchronously
+        AutoSchedulerService.process_next_keyword(db, force=True)
+    return RedirectResponse(url="/admin/ai-blog?active_tab=queue&success=Generation+initiated", status_code=303)
+
+
+@router.post("/ai-blog/run-scheduler-now")
+def ai_blog_run_scheduler_now(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    res = AutoSchedulerService.process_next_keyword(db, force=True)
+    msg = res.get("message") or ("Success" if res.get("status") == "success" else res.get("error", "Processed"))
+    return RedirectResponse(url=f"/admin/ai-blog?active_tab=queue&msg={msg}", status_code=303)
+
+
+@router.post("/ai-blog/jobs/{job_id}/retry")
+def ai_blog_retry_job(job_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
+    if job:
+        job.status = "pending"
+        job.attempts = (job.attempts or 0) + 1
+        job.error_message = None
+        job.validation_errors = None
+        db.commit()
+        # Trigger immediate processing
+        AutoSchedulerService.process_next_keyword(db, force=True)
+    return RedirectResponse(url="/admin/ai-blog?active_tab=queue&success=Job+queued+for+retry", status_code=303)
+
+
+@router.post("/ai-blog/jobs/{job_id}/delete")
+def ai_blog_delete_job(job_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
+    if job:
+        db.delete(job)
+        db.commit()
+    return RedirectResponse(url="/admin/ai-blog?active_tab=queue", status_code=303)
+
+
+@router.post("/ai-blog/articles/{article_id}/publish")
+def ai_blog_publish_article(article_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if article:
+        article.status = "published"
+        article.published_at = datetime.utcnow()
+        db.commit()
+        try:
+            IndexingService.submit_article_url(db, article)
+        except Exception:
+            pass
+    return RedirectResponse(url="/admin/ai-blog?active_tab=published&success=Article+published", status_code=303)
+
+
+@router.post("/ai-blog/articles/{article_id}/unpublish")
+def ai_blog_unpublish_article(article_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if article:
+        article.status = "draft"
+        db.commit()
+    return RedirectResponse(url="/admin/ai-blog?active_tab=published&success=Article+moved+to+drafts", status_code=303)
+
+
+@router.post("/ai-blog/articles/{article_id}/regenerate-image")
+def ai_blog_regenerate_image(article_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if article:
+        try:
+            img_res = AIImageService.generate_featured_image(
+                keyword=article.primary_keyword,
+                title=article.title,
+                slug=f"{article.slug}-new",
+                language=article.language or "English",
+                db=db,
+                allow_fallback=True
+            )
+            article.featured_image = img_res["url"]
+            article.featured_image_alt = img_res["alt"]
+            article.featured_image_caption = img_res["caption"]
+            db.commit()
+            return RedirectResponse(url="/admin/ai-blog?active_tab=published&success=Image+regenerated+successfully", status_code=303)
+        except Exception as e:
+            return RedirectResponse(url=f"/admin/ai-blog?active_tab=published&error={str(e)}", status_code=303)
+    return RedirectResponse(url="/admin/ai-blog?active_tab=published", status_code=303)
+
+
+@router.post("/ai-blog/articles/{article_id}/index-now")
+def ai_blog_index_article_now(article_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if article:
+        res = IndexingService.submit_article_url(db, article)
+        if res.get("success"):
+            return RedirectResponse(url="/admin/ai-blog?active_tab=indexing&success=Indexing+request+submitted+successfully", status_code=303)
+        else:
+            return RedirectResponse(url="/admin/ai-blog?active_tab=indexing&error=Indexing+submission+failed", status_code=303)
+    return RedirectResponse(url="/admin/ai-blog?active_tab=indexing", status_code=303)
+
+
+@router.post("/ai-blog/indexing/{log_id}/retry")
+def ai_blog_retry_indexing(log_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    res = IndexingService.retry_indexing_log(db, log_id)
+    return RedirectResponse(url="/admin/ai-blog?active_tab=indexing", status_code=303)
+
+
+@router.post("/ai-blog/settings")
+def ai_blog_save_settings(
+    openai_api_key: Optional[str] = Form(None),
+    openai_model: str = Form("gpt-4o-mini"),
+    image_model: str = Form("dall-e-3"),
+    default_language: str = Form("English"),
+    default_word_count: int = Form(2000),
+    daily_article_limit: int = Form(5),
+    publish_frequency: str = Form("daily"),
+    timezone: str = Form("UTC"),
+    auto_publish_enabled: Optional[str] = Form(None),
+    auto_scheduler_enabled: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    def update_setting(k: str, v: str, is_secret: bool = False, category: str = "ai_blog"):
+        s = db.query(SiteSetting).filter(SiteSetting.key == k).first()
+        if s:
+            s.value = v
+        else:
+            db.add(SiteSetting(key=k, value=v, is_secret=is_secret, category=category))
+
+    if openai_api_key and openai_api_key.strip() and not openai_api_key.startswith("sk-..."):
+        clean_key = openai_api_key.strip()
+        update_setting("openai_api_key", clean_key, is_secret=True, category="api")
+
+    update_setting("openai_model", openai_model.strip(), category="api")
+    update_setting("image_model", image_model.strip(), category="api")
+    update_setting("default_language", default_language.strip(), category="ai_blog")
+    update_setting("default_word_count", str(default_word_count), category="ai_blog")
+    update_setting("daily_article_limit", str(daily_article_limit), category="ai_blog")
+    update_setting("publish_frequency", publish_frequency.strip(), category="ai_blog")
+    update_setting("timezone", timezone.strip(), category="ai_blog")
+    update_setting("auto_publish_enabled", "true" if auto_publish_enabled else "false", category="ai_blog")
+    update_setting("auto_scheduler_enabled", "true" if auto_scheduler_enabled else "false", category="ai_blog")
+
+    db.commit()
+    return RedirectResponse(url="/admin/ai-blog?active_tab=settings&success=AI+Blogging+settings+saved+successfully", status_code=303)
+
 
