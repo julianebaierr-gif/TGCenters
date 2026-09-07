@@ -292,6 +292,21 @@ def retry_job(job_id: int, db: Session = Depends(get_db), admin: User = Depends(
         QueueRunner.execute_job(db, job.id)
     return RedirectResponse(url="/admin/queue", status_code=303)
 
+@router.post("/queue/{job_id}/delete")
+def delete_queue_job(job_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
+    if job:
+        db.delete(job)
+        db.commit()
+    return RedirectResponse(url="/admin/queue", status_code=303)
+
+@router.post("/queue/clear")
+def clear_queue(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    db.query(GenerationJob).delete()
+    db.commit()
+    return RedirectResponse(url="/admin/queue", status_code=303)
+
+
 # --- ARTICLES MANAGER & EDITOR ---
 
 @router.get("/articles", response_class=HTMLResponse)
@@ -422,7 +437,7 @@ def delete_article(article_id: int, db: Session = Depends(get_db), admin: User =
             trigger_auto_deploy_background()
         except Exception:
             pass
-    return RedirectResponse(url="/admin/articles", status_code=303)
+    return RedirectResponse(url="/admin/articles?deleted=1", status_code=303)
 
 @router.post("/deploy-now")
 def deploy_now(db: Session = Depends(get_db), admin: User = Depends(require_admin)):

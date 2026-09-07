@@ -185,11 +185,22 @@
     </div>
   </div>
 
-  <div class="flex justify-end pt-4">
-    <button type="submit" class="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-xl transition">
-      Save All Changes
+  <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-800">
+    <button type="button" onclick="if(confirm('Are you completely sure you want to permanently delete this article? This action cannot be undone.')) { document.getElementById('delete-article-form').submit(); }" class="w-full sm:w-auto px-5 py-3 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white text-xs font-bold rounded-xl border border-rose-500/30 transition flex items-center justify-center">
+      <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i> Delete Article
     </button>
+    <div class="flex items-center space-x-4 w-full sm:w-auto justify-end">
+      <a href="/blog/{{ article.slug }}" target="_blank" class="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold rounded-xl border border-slate-800 transition flex items-center">
+        <i data-lucide="external-link" class="w-4 h-4 mr-2"></i> View Live Post
+      </a>
+      <button type="submit" class="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-xl transition">
+        Save All Changes
+      </button>
+    </div>
   </div>
 
 </form>
+
+<form id="delete-article-form" action="/admin/articles/{{ article.id }}/delete" method="POST" class="hidden"></form>
 {% endblock %}
+

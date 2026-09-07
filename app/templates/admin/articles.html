@@ -15,6 +15,12 @@
     </a>
   </div>
 
+  {% if request.query_params.get('deleted') == '1' %}
+  <div class="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400 font-bold flex items-center shadow-lg">
+    <i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> Article was permanently deleted successfully.
+  </div>
+  {% endif %}
+
   <!-- Status Filter Tabs -->
   <div class="flex items-center space-x-2 pb-2">
     <a href="/admin/articles" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition {% if status_filter == 'all' %}bg-indigo-600 text-white{% else %}bg-slate-950 text-slate-400 hover:text-white border border-slate-800{% endif %}">
@@ -68,14 +74,16 @@
             <td class="px-4 py-4 text-slate-500">
               {{ art.published_at.strftime("%Y-%m-%d") if art.published_at else "?" }}
             </td>
-            <td class="px-5 py-4 text-right space-x-3">
-              <a href="/blog/{{ art.slug }}" target="_blank" class="text-slate-400 hover:text-white" title="View Article"><i data-lucide="external-link" class="w-4 h-4 inline"></i></a>
-              <a href="/admin/articles/{{ art.id }}/edit" class="text-indigo-400 hover:text-indigo-300 font-bold" title="Edit Article">Edit</a>
+            <td class="px-5 py-4 text-right space-x-2">
+              <a href="/blog/{{ art.slug }}" target="_blank" class="p-1.5 text-slate-400 hover:text-white inline-flex items-center rounded-lg hover:bg-slate-900" title="View Article"><i data-lucide="external-link" class="w-4 h-4"></i></a>
+              <a href="/admin/articles/{{ art.id }}/edit" class="px-2.5 py-1 text-indigo-400 hover:text-indigo-300 font-bold bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg text-xs" title="Edit Article">Edit</a>
               <form action="/admin/articles/{{ art.id }}/duplicate" method="POST" class="inline">
-                <button type="submit" class="text-slate-400 hover:text-slate-200" title="Duplicate Article">Duplicate</button>
+                <button type="submit" class="px-2.5 py-1 text-slate-400 hover:text-slate-200 bg-slate-900 hover:bg-slate-800 rounded-lg text-xs" title="Duplicate Article">Duplicate</button>
               </form>
-              <form action="/admin/articles/{{ art.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Permanently delete this article?');">
-                <button type="submit" class="text-rose-500 hover:text-rose-400" title="Delete Article">Delete</button>
+              <form action="/admin/articles/{{ art.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Permanently delete this article? This action cannot be undone.');">
+                <button type="submit" class="px-2.5 py-1 text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg text-xs font-bold" title="Delete Article">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5 inline mr-0.5"></i> Delete
+                </button>
               </form>
             </td>
           </tr>

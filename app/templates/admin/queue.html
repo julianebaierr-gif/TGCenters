@@ -10,9 +10,16 @@
       <h2 class="text-2xl font-extrabold text-white">Batch Keyword Queue</h2>
       <p class="text-xs text-slate-400 mt-1">Queue dozens of keywords to run sequentially through the automated publishing pipeline.</p>
     </div>
-    <button type="button" onclick="runAllQueue();" class="px-5 py-2.5 brand-gradient text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-indigo-500/25 transition flex items-center">
-      <i data-lucide="play" class="w-3.5 h-3.5 mr-2"></i> Process All Pending Jobs
-    </button>
+    <div class="flex items-center space-x-3">
+      <form action="/admin/queue/clear" method="POST" onsubmit="return confirm('Clear all jobs from the automation queue?');">
+        <button type="submit" class="px-4 py-2.5 bg-slate-900 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 font-bold text-xs rounded-xl transition flex items-center">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5 mr-1.5"></i> Clear Queue
+        </button>
+      </form>
+      <button type="button" onclick="runAllQueue();" class="px-5 py-2.5 brand-gradient text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-indigo-500/25 transition flex items-center">
+        <i data-lucide="play" class="w-3.5 h-3.5 mr-2"></i> Process All Pending Jobs
+      </button>
+    </div>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -86,9 +93,12 @@
                 </form>
                 {% elif job.status == 'completed' and job.result_article_id %}
                 <a href="/admin/articles/{{ job.result_article_id }}/edit" class="text-indigo-400 hover:text-indigo-300 font-bold text-xs">View Article</a>
-                {% else %}
-                <span class="text-slate-600">?</span>
                 {% endif %}
+                <form action="/admin/queue/{{ job.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Delete this job from the queue?');">
+                  <button type="submit" class="text-slate-500 hover:text-rose-400 text-xs p-1" title="Delete Job">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5 inline"></i>
+                  </button>
+                </form>
               </td>
             </tr>
             {% else %}

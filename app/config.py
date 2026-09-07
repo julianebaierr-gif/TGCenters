@@ -43,10 +43,10 @@ settings = Settings()
 try:
     os.makedirs(settings.UPLOADS_DIR, exist_ok=True)
     if settings.IS_VERCEL:
-        # 1. Populate writable SQLite database in /tmp from bundled seed
+        # 1. Populate writable SQLite database in /tmp from bundled seed only if not already present
         tmp_db_path = Path("/tmp/trendblogo.db")
         seed_db_path = Path(__file__).resolve().parent / "trendblogo_seed.db"
-        if seed_db_path.exists():
+        if not tmp_db_path.exists() and seed_db_path.exists():
             try:
                 shutil.copy2(seed_db_path, tmp_db_path)
             except Exception as e_db:
