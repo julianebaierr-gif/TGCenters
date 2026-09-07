@@ -40,7 +40,7 @@ class ImageService:
             f"A wide or medium establishing street-level or environmental documentary scene in bright natural daylight. "
             f"Real-world architecture, authentic painted storefront facade with vintage lettering, aged brick, glass window reflections "
             f"showing city street, concrete sidewalk with natural sun shadows, genuine surroundings. "
-            f"Captured on an iPhone 15 Pro or 35mm lens, raw unretouched documentary photography, natural colors, realistic depth of field. "
+            f"Captured on a modern camera with 35mm lens, raw unretouched documentary photography, natural colors, realistic depth of field. "
             f"Strictly a real photograph: zero CGI, zero 3D rendering, zero digital illustration, zero cartoon, zero vector graphics, zero sci-fi neon."
         )
 
@@ -68,12 +68,13 @@ class ImageService:
                             "role": "system",
                             "content": (
                                 "You are an award-winning documentary photojournalist and commercial street photographer. "
-                                "Write two distinct, ultra-realistic real-life photography prompts for OpenAI DALL-E based on the user's article topic and outline.\n\n"
+                                "Write two distinct, ultra-realistic real-life photography prompts for OpenAI DALL-E 3 based on the user's article topic and outline.\n\n"
                                 "MANDATORY PHOTOGRAPHIC STYLE RULES:\n"
-                                "1. Real-World Authentic Photography Only: Must look like a real, raw, candid photograph captured in the real physical world (shot on an iPhone 15 Pro, Leica Q3, or Canon EOS R5 with 35mm/50mm f/1.8 lens in direct natural daylight).\n"
+                                "1. Real-World Authentic Photography Only: Must look like a real, raw, candid photograph captured in the real physical world (shot on a modern smartphone camera or 35mm/50mm f/1.8 lens in direct natural daylight).\n"
                                 "2. Natural Lighting & Shadows: Bright natural sunlight, afternoon sun with soft realistic directional shadows, or natural bright window daylight. Real atmospheric light and organic reflections.\n"
                                 "3. Real Textures & Environments: Tangible real-world details — sunlit concrete curbs, aged brick walls, painted wooden storefronts with gold lettering, glass window reflections of city streets, real food on paper plates, wooden tabletops, authentic clothing fabrics, real human hands or people interacting.\n"
-                                "4. STRICT PROHIBITIONS: Absolutely NO CGI, NO 3D rendering, NO digital art, NO illustration, NO vector graphics, NO sci-fi glow, NO neon, NO cartoon, NO plastic smoothness, NO artificial studio backdrops.\n\n"
+                                "4. SAFETY COMPLIANCE: Do NOT mention any brand names, trademark names, or phone/camera manufacturer names (do not mention iPhone, Apple, Leica, Canon, Sony, Nikon, etc.).\n"
+                                "5. STRICT PROHIBITIONS: Absolutely NO CGI, NO 3D rendering, NO digital art, NO illustration, NO vector graphics, NO sci-fi glow, NO neon, NO cartoon, NO plastic smoothness, NO artificial studio backdrops.\n\n"
                                 "SPECIFICATIONS FOR THE 2 IMAGES:\n"
                                 "- Image 1 (Featured Cover / Hero): Wide or medium establishing shot in a real-world setting (e.g. authentic building storefront, street sidewalk scene, workshop, or outdoor environment in natural sunlight).\n"
                                 "- Image 2 (In-Article Midpoint): A close-up, tabletop, or hands-on candid detail snapshot showing the physical subject, meal, tool, or product in action (e.g. food on a paper plate, hand holding an item, rich tangible textures, shallow depth of field).\n\n"
@@ -170,7 +171,7 @@ class ImageService:
     ) -> Dict[str, Any]:
         """
         Generates exactly 2 unique real-life photographs (1 featured hero + 1 in-article)
-        exclusively using the ChatGPT / OpenAI API.
+        exclusively using the ChatGPT / OpenAI DALL-E 3 API.
         """
         if api_key and api_key.strip():
             active_key = api_key.strip()
@@ -194,23 +195,64 @@ class ImageService:
         prompt_specs = cls.generate_image_prompts(keyword, title, outline_sections, client=client)
         results = {}
 
-        # Candidate OpenAI image models (prioritize DALL-E 3 for high-fidelity realism)
-        candidate_models = ["dall-e-3", "dall-e-2"]
-
         def _generate_one(spec_with_idx):
             idx, spec = spec_with_idx
             img_type = spec["type"]
-            img_prompt = spec["prompt"][:1000]
+            img_prompt = spec["prompt"]
+            
+            # Sanitize brand and trademark names to strictly avoid OpenAI safety filter rejection
+            forbidden_terms = [
+                "iPhone 15 Pro", "iPhone", "Apple", "Leica Q3", "Leica",
+                "Canon EOS R5", "Canon EOS", "Canon", "Sony A7IV", "Sony", "Nikon"
+            ]
+            for term in forbidden_terms:
+                img_prompt = re.sub(re.escape(term), "modern camera", img_prompt, flags=re.IGNORECASE)
+
             img_bytes = None
             last_err = None
 
-            for model_name in candidate_models:
+            # 1. Primary Attempt with DALL-E 3
+            try:
+                img_resp = client.images.generate(
+                    model="dall-e-3",
+                    prompt=img_prompt[:1000],
+                    n=1,
+                    size="1024x1024",
+                    quality="standard"
+                )
+                item = img_resp.data[0]
+                b64_data = getattr(item, "b64_json", None)
+                img_url = getattr(item, "url", None)
+
+                if b64_data:
+                    img_bytes = base64.b64decode(b64_data)
+                elif img_url:
+                    req_dl = urllib.request.Request(img_url, headers={"User-Agent": "TrendBlogo/2.0"})
+                    with urllib.request.urlopen(req_dl, timeout=35.0) as dl_resp:
+                        img_bytes = dl_resp.read()
+            except Exception as e_dalle3:
+                last_err = e_dalle3
+                # 2. Safety filter fallback: retry with a clean, concise, brand-free real-life photo prompt
                 try:
+                    is_hero = (img_type == "featured")
+                    if is_hero:
+                        safe_prompt = (
+                            f"An authentic candid documentary street photograph representing '{keyword}'. "
+                            f"Real outdoor architectural setting, sunlit building facade, realistic street sidewalk, "
+                            f"natural daytime sunlight, genuine physical environment, natural colors."
+                        )
+                    else:
+                        safe_prompt = (
+                            f"A candid close-up tabletop photograph of '{keyword}' in everyday setting. "
+                            f"Resting on a surface in natural direct sunlight, rich tangible textures, "
+                            f"candid handheld perspective, authentic documentary photography."
+                        )
                     img_resp = client.images.generate(
-                        model=model_name,
-                        prompt=img_prompt,
+                        model="dall-e-3",
+                        prompt=safe_prompt,
                         n=1,
-                        size="1024x1024"
+                        size="1024x1024",
+                        quality="standard"
                     )
                     item = img_resp.data[0]
                     b64_data = getattr(item, "b64_json", None)
@@ -218,15 +260,12 @@ class ImageService:
 
                     if b64_data:
                         img_bytes = base64.b64decode(b64_data)
-                        break
                     elif img_url:
                         req_dl = urllib.request.Request(img_url, headers={"User-Agent": "TrendBlogo/2.0"})
                         with urllib.request.urlopen(req_dl, timeout=35.0) as dl_resp:
                             img_bytes = dl_resp.read()
-                        break
-                except Exception as e_gen:
-                    last_err = e_gen
-                    continue
+                except Exception as e_retry:
+                    last_err = e_retry
 
             if img_bytes:
                 png_filename = f"{slug}-{img_type}.png"
@@ -254,9 +293,10 @@ class ImageService:
                 })
             else:
                 raise RuntimeError(
-                    f"Failed to generate real photograph for '{img_type}' via OpenAI API: {last_err}. "
-                    f"Please verify that your OpenAI API Key has active image generation credits."
+                    f"OpenAI DALL-E 3 generation failed for '{img_type}': {last_err}. "
+                    f"Please verify that your OpenAI API Key has active credits for DALL-E 3 image generation."
                 )
+
 
         # Generate the 2 images in parallel (max_workers=2)
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:

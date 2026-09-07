@@ -292,7 +292,7 @@ document.addEventListener("DOMContentLoaded", () => {
           progressPercent.textContent = curProgress + "%";
           if (curProgress === 35) progressStatusText.textContent = "Synthesizing deep ChatGPT article & plain-text headings...";
           if (curProgress === 55) progressStatusText.textContent = "Injecting contextual internal and authoritative external links...";
-          if (curProgress === 75) progressStatusText.textContent = "Generating 4 bespoke DALL-E 3 visual assets...";
+          if (curProgress === 75) progressStatusText.textContent = "Generating 2 real-life photographs via OpenAI API...";
           if (curProgress === 85) progressStatusText.textContent = "Generating Schema.org JSON-LD & running quality audit...";
         }
       }, 400);

@@ -97,6 +97,21 @@ class Article(Base):
     quality_score = Column(Float, default=95.0)
     quality_report = Column(Text, nullable=True)  # JSON string
 
+    # AI Auto-Blogging & Generation Tracking
+    language = Column(String(50), default="English", index=True)
+    focus_keyword = Column(String(150), nullable=True)
+    ai_generated = Column(Boolean, default=True)
+    ai_model = Column(String(80), default="gpt-4o-mini")
+    image_model = Column(String(80), default="dall-e-3")
+    generation_attempts = Column(Integer, default=1)
+    error_message = Column(Text, nullable=True)
+
+    # Search Engine Indexing Status
+    indexing_status = Column(String(50), default="pending", index=True) # pending, submitted, indexed, failed
+    indexing_requested_at = Column(DateTime, nullable=True)
+    indexing_response = Column(Text, nullable=True)
+    indexing_service = Column(String(50), nullable=True)
+
     # Relationships
     category = relationship("Category", back_populates="articles")
     tags = relationship("ArticleTag", back_populates="article", cascade="all, delete-orphan")

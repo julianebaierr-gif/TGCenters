@@ -21,6 +21,8 @@ def init_app_state():
     try:
         # Create tables if not existing
         Base.metadata.create_all(bind=engine)
+        from app.database_migration import run_migrations
+        run_migrations()
         if not settings.IS_VERCEL:
             seed_database()
         _initialized = True

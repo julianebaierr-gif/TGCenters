@@ -35,3 +35,16 @@ class HomepageSection(Base):
     category_slug = Column(String(80), nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class IndexingLog(Base):
+    __tablename__ = "indexing_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, nullable=True)
+    url = Column(String(255), nullable=False)
+    service = Column(String(50), default="indexnow")  # indexnow, google, bing, sitemap_ping
+    status = Column(String(30), default="submitted")   # submitted, success, failed
+    response_code = Column(Integer, nullable=True)
+    response_body = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
