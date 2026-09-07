@@ -2,7 +2,7 @@
   "functions": {
     "api/index.py": {
       "runtime": "python3.12",
-      "includeFiles": "{app/**,static/**}",
+      "includeFiles": "app/**,static/**",
       "maxDuration": 60
     }
   },
@@ -14,10 +14,6 @@
     {
       "source": "/media/(.*)",
       "destination": "/api/index.py?__vercel_path=/static/uploads/$1"
-    },
-    {
-      "source": "/static/(.*)",
-      "destination": "/static/$1"
     },
     {
       "source": "/(.*)",
